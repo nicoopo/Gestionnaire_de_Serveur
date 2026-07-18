@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>server-manager</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+    <div class="topbar-left">
+        <span class="led" id="conn-led"></span>
+        <span class="brand">server-manager</span>
+        <span class="brand-sub">// panneau de contrôle</span>
+    </div>
+    <div class="topbar-right">
+        <span id="clock">--:--:--</span>
+    </div>
+</header>
+
+<main class="rack">
+    <!-- SYSTEM -->
+    <section class="panel panel-system">
+        <div class="panel-head">
+            <h2>Système</h2>
+            <span class="panel-tag" id="uptime-tag">uptime --</span>
+        </div>
+
+        <div class="meters">
+            <div class="meter">
+                <div class="meter-label">
+                    <span>CPU</span>
+                    <span class="meter-value" id="cpu-value">--%</span>
+                </div>
+                <div class="segbar" id="cpu-bar"></div>
+            </div>
+            <div class="meter">
+                <div class="meter-label">
+                    <span>RAM</span>
+                    <span class="meter-value" id="ram-value">--%</span>
+                </div>
+                <div class="segbar" id="ram-bar"></div>
+                <div class="meter-sub" id="ram-sub"></div>
+            </div>
+            <div class="meter">
+                <div class="meter-label">
+                    <span>Disque</span>
+                    <span class="meter-value" id="disk-value">--%</span>
+                </div>
+                <div class="segbar" id="disk-bar"></div>
+                <div class="meter-sub" id="disk-sub"></div>
+            </div>
+        </div>
+
+        <div class="cores-block">
+            <div class="meter-label"><span>Cœurs</span><span class="meter-value" id="core-count">--</span></div>
+            <div class="core-grid" id="core-grid"></div>
+        </div>
+
+        <div class="stat-row">
+            <div class="stat"><span class="stat-label">Processus</span><span class="stat-value" id="proc-count">--</span></div>
+        </div>
+    </section>
+
+    <!-- PROCESSES -->
+    <section class="panel panel-wide">
+        <div class="panel-head">
+            <h2>Processus</h2>
+            <div class="search">
+                <span class="prompt">&gt;</span>
+                <input type="text" id="process-filter" placeholder="filtrer par nom...">
+            </div>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                <tr><th>PID</th><th>Nom</th><th>CPU</th><th>RAM</th><th>Statut</th><th></th></tr>
+                </thead>
+                <tbody id="processes-body"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- SERVICES -->
+    <section class="panel panel-wide">
+        <div class="panel-head">
+            <h2>Services actifs</h2>
+            <span class="panel-tag" id="services-count">-- en ligne</span>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                <tr><th></th><th>Nom</th><th>Statut</th><th></th></tr>
+                </thead>
+                <tbody id="services-body"></tbody>
+            </table>
+        </div>
+    </section>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

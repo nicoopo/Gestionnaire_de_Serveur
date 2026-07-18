@@ -17,6 +17,9 @@ func main() {
 	mux.HandleFunc("POST /api/services/{name}/start", api.StartServiceHandler)
 	mux.HandleFunc("POST /api/services/{name}/stop", api.StopServiceHandler)
 
+	fs := http.FileServer(http.Dir("./web"))
+	mux.Handle("/", fs)
+
 	log.Println("Serveur démarré sur :8080")
 	if err := http.ListenAndServe(":8080", mux); err != nil {
 		log.Fatal(err)
