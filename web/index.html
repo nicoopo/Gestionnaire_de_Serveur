@@ -109,6 +109,28 @@
         </div>
         <div id="history-chart"></div>
     </section>
+
+    <section class="panel panel-wide">
+        <div class="panel-head">
+            <h2>Fichiers</h2>
+            <span class="panel-tag" id="current-path">/</span>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                <tr><th></th><th>Nom</th><th>Taille</th><th>Modifié</th><th></th></tr>
+                </thead>
+                <tbody id="files-body"></tbody>
+            </table>
+        </div>
+        <div id="file-viewer" style="display:none; margin-top:1rem;">
+            <div class="panel-head">
+                <span class="meter-sub" id="viewer-filename"></span>
+                <button onclick="closeFileViewer()">fermer</button>
+            </div>
+            <pre id="file-content" class="file-content"></pre>
+        </div>
+    </section>
 </main>
 
 <script src="app.js"></script>

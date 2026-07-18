@@ -82,6 +82,9 @@ func main() {
 	protectedAPI.HandleFunc("GET /api/disks", api.DisksHandler)
 	protectedAPI.HandleFunc("GET /api/gpu", api.GPUHandler)
 	protectedAPI.HandleFunc("GET /api/history", api.HistoryHandler(history))
+	protectedAPI.HandleFunc("GET /api/files", api.ListDirHandler)
+	protectedAPI.HandleFunc("GET /api/files/read", api.ReadFileHandler)
+	protectedAPI.HandleFunc("GET /api/files/download", api.DownloadFileHandler)
 
 	mux.Handle("/api/", auth.Middleware(protectedAPI))
 

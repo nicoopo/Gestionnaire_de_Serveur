@@ -294,6 +294,83 @@ function showAlerts(alerts) {
     }, 6000);
 }
 
+
+let currentPath = '';
+
+async function loadFiles(path = '') {
+    currentPath = path;
+    document.getElementById('current-path').textContent = '/' + path;
+
+    const res = await authFetch(`/api/files?path=${encodeURIComponent(path)}`);
+    if (!res.ok) {
+        alert('Erreur lors du chargement du dossier');
+        return;
+    }
+    const data = await res.json();
+
+    const tbody = document.getElementById('files-body');
+    tbody.innerHTML = '';
+
+    if (path !== '') {
+        const parentRow = document.createElement('tr');
+        parentRow.innerHTML = `<td>📁</td><td colspan="4"><a href="#" onclick="goUp(); return false;">..</a></td>`;
+        tbody.appendChild(parentRow);
+    }
+
+    data.forEach(entry => {
+        const row = document.createElement('tr');
+        const icon = entry.is_dir ? '📁' : '📄';
+
+        if (entry.is_dir) {
+            row.innerHTML = `
+                <td>${icon}</td>
+                <td><a href="#" onclick="loadFiles('${entry.path}'); return false;">${entry.name}</a></td>
+                <td>—</td>
+                <td>${entry.mod_time}</td>
+                <td></td>
+            `;
+        } else {
+            row.innerHTML = `
+                <td>${icon}</td>
+                <td><a href="#" onclick="viewFile('${entry.path}'); return false;">${entry.name}</a></td>
+                <td>${entry.size_kb} Ko</td>
+                <td>${entry.mod_time}</td>
+                <td><button onclick="downloadFile('${entry.path}')">télécharger</button></td>
+            `;
+        }
+        tbody.appendChild(row);
+    });
+}
+
+function goUp() {
+    const parts = currentPath.split('/').filter(Boolean);
+    parts.pop();
+    loadFiles(parts.join('/'));
+}
+
+async function viewFile(path) {
+    const res = await authFetch(`/api/files/read?path=${encodeURIComponent(path)}`);
+    if (!res.ok) {
+        const err = await res.text();
+        alert('Erreur: ' + err);
+        return;
+    }
+    const data = await res.json();
+
+    document.getElementById('viewer-filename').textContent = path;
+    document.getElementById('file-content').textContent = data.content;
+    document.getElementById('file-viewer').style.display = 'block';
+}
+
+function closeFileViewer() {
+    document.getElementById('file-viewer').style.display = 'none';
+}
+
+function downloadFile(path) {
+    const url = `/api/files/download?path=${encodeURIComponent(path)}&token=${encodeURIComponent(token)}`;
+    window.open(url, '_blank');
+}
+
 document.getElementById('process-filter').addEventListener('input', (e) => {
     loadProcesses(e.target.value);
 });
@@ -307,6 +384,7 @@ loadServices();
 loadDisks();
 loadGPU();
 loadHistory();
+loadFiles();
 
 setInterval(() => {
     loadProcesses(document.getElementById('process-filter').value);
