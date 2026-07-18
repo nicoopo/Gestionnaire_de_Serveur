@@ -1,4 +1,9 @@
 const token = localStorage.getItem('token');
+const maxHistoryPoints = 150;
+let cpuHistory = [];
+let ramHistory = [];
+let diskHistory = [];
+let gpuHistory = [];
 if (!token) {
     window.location.href = '/login.html';
 }
@@ -68,6 +73,16 @@ function renderSystemInfo(data) {
         cell.innerHTML = `<style>.core-cell:nth-child(${i + 1})::after{height:${Math.max(pct,4)}%;background:${levelColor(pct)};}</style>`;
         grid.appendChild(cell);
     });
+    cpuHistory.push(data.cpu_percent);
+    if (cpuHistory.length > maxHistoryPoints) cpuHistory.shift();
+
+    ramHistory.push(data.ram_percent);
+    if (ramHistory.length > maxHistoryPoints) ramHistory.shift();
+
+    diskHistory.push(data.disk_percent);
+    if (diskHistory.length > maxHistoryPoints) diskHistory.shift();
+
+    renderHistoryChart();
 }
 
 async function loadDisks() {
@@ -119,6 +134,11 @@ async function loadGPU() {
         `;
         container.appendChild(block);
     });
+    if (data.length > 0) {
+        gpuHistory.push(data[0].usage_percent);
+        if (gpuHistory.length > maxHistoryPoints) gpuHistory.shift();
+        renderHistoryChart();
+    }
 }
 
 async function loadProcesses(filter = '') {
@@ -208,6 +228,47 @@ function connectWS() {
     socket.onerror = () => socket.close();
 }
 
+function buildLinePath(values, width, height) {
+    if (values.length < 2) return '';
+    const step = width / (maxHistoryPoints - 1);
+    const offset = maxHistoryPoints - values.length;
+    return values.map((v, i) => {
+        const x = (offset + i) * step;
+        const y = height - (v / 100) * height;
+        return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(' ');
+}
+
+function renderHistoryChart() {
+    const width = 600, height = 120;
+    const cpuPath = buildLinePath(cpuHistory, width, height);
+    const ramPath = buildLinePath(ramHistory, width, height);
+    const diskPath = buildLinePath(diskHistory, width, height);
+    const gpuPath = buildLinePath(gpuHistory, width, height);
+
+    document.getElementById('history-chart').innerHTML = `
+        <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" style="width:100%;height:120px;">
+            <line x1="0" y1="${height*0.25}" x2="${width}" y2="${height*0.25}" stroke="var(--border)" stroke-width="1"/>
+            <line x1="0" y1="${height*0.5}" x2="${width}" y2="${height*0.5}" stroke="var(--border)" stroke-width="1"/>
+            <line x1="0" y1="${height*0.75}" x2="${width}" y2="${height*0.75}" stroke="var(--border)" stroke-width="1"/>
+            <path d="${diskPath}" fill="none" stroke="#7aa2f7" stroke-width="1.5" opacity="0.8"/>
+            <path d="${gpuPath}" fill="none" stroke="#c678dd" stroke-width="1.5" opacity="0.8"/>
+            <path d="${ramPath}" fill="none" stroke="var(--ok)" stroke-width="2"/>
+            <path d="${cpuPath}" fill="none" stroke="var(--accent)" stroke-width="2"/>
+        </svg>
+    `;
+}
+
+async function loadHistory() {
+    const res = await authFetch('/api/history');
+    const data = await res.json();
+    cpuHistory = data.map(s => s.cpu_percent);
+    ramHistory = data.map(s => s.ram_percent);
+    diskHistory = data.map(s => s.disk_percent);
+    gpuHistory = data.map(s => s.gpu_percent);
+    renderHistoryChart();
+}
+
 document.getElementById('process-filter').addEventListener('input', (e) => {
     loadProcesses(e.target.value);
 });
@@ -220,6 +281,7 @@ loadProcesses();
 loadServices();
 loadDisks();
 loadGPU();
+loadHistory();
 
 setInterval(() => {
     loadProcesses(document.getElementById('process-filter').value);

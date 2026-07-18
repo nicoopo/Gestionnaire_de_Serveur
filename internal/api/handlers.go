@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/nicoopo/Gestionnaire_de_Serveur/internal/metrics"
 	"github.com/nicoopo/Gestionnaire_de_Serveur/internal/process"
 	"github.com/nicoopo/Gestionnaire_de_Serveur/internal/service"
 	"github.com/nicoopo/Gestionnaire_de_Serveur/internal/system"
@@ -143,4 +144,11 @@ func GPUHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(gpus)
+}
+
+func HistoryHandler(h *metrics.History) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(h.All())
+	}
 }

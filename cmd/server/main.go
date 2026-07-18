@@ -9,6 +9,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/nicoopo/Gestionnaire_de_Serveur/internal/api"
 	"github.com/nicoopo/Gestionnaire_de_Serveur/internal/auth"
+	"github.com/nicoopo/Gestionnaire_de_Serveur/internal/metrics"
 	"github.com/nicoopo/Gestionnaire_de_Serveur/internal/system"
 	"github.com/nicoopo/Gestionnaire_de_Serveur/internal/ws"
 )
@@ -18,6 +19,8 @@ func main() {
 		log.Println("Aucun fichier .env trouvé, utilisation des variables d'environnement système")
 	}
 
+	history := metrics.NewHistory(150) // 150 échantillons à 2s = 5 minutes
+
 	mux := http.NewServeMux()
 
 	hub := ws.NewHub()
@@ -26,12 +29,28 @@ func main() {
 	go func() {
 		ticker := time.NewTicker(2 * time.Second)
 		defer ticker.Stop()
+
 		for range ticker.C {
 			info, err := system.GetSystemInfo()
 			if err != nil {
 				log.Println("erreur récupération system info:", err)
 				continue
 			}
+
+			// GPU optionnel : 0 si pas de carte NVIDIA détectée
+			var gpuPercent float64
+			if gpus, err := system.ListGPUs(); err == nil && len(gpus) > 0 {
+				gpuPercent = gpus[0].UsagePercent
+			}
+
+			history.Add(metrics.Sample{
+				Timestamp:   time.Now().Unix(),
+				CPUPercent:  info.CPUPercent,
+				RAMPercent:  info.RAMPercent,
+				DiskPercent: info.DiskPercent,
+				GPUPercent:  gpuPercent,
+			})
+
 			data, err := json.Marshal(info)
 			if err != nil {
 				continue
@@ -53,6 +72,7 @@ func main() {
 	protectedAPI.HandleFunc("POST /api/services/{name}/stop", api.StopServiceHandler)
 	protectedAPI.HandleFunc("GET /api/disks", api.DisksHandler)
 	protectedAPI.HandleFunc("GET /api/gpu", api.GPUHandler)
+	protectedAPI.HandleFunc("GET /api/history", api.HistoryHandler(history))
 
 	mux.Handle("/api/", auth.Middleware(protectedAPI))
 

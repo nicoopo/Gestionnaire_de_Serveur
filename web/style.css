@@ -299,3 +299,19 @@ button.danger:hover { border-color: var(--danger); color: var(--danger); }
     padding: 2rem;
     width: 280px;
 }
+
+
+.legend {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+}
+
+.legend .dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 0.3rem;
+}
