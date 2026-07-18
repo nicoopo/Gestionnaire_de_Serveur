@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/nicoopo/Gestionnaire_de_Serveur/internal/process"
+	"github.com/nicoopo/Gestionnaire_de_Serveur/internal/service"
 	"github.com/nicoopo/Gestionnaire_de_Serveur/internal/system"
 )
 
@@ -81,6 +82,43 @@ func KillProcessHandler(w http.ResponseWriter, r *http.Request) {
 		Message: "process arrêté",
 	}
 
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
+}
+
+func ServicesHandler(w http.ResponseWriter, r *http.Request) {
+	services, err := service.ListServices()
+	if err != nil {
+		http.Error(w, "failed to list services: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(services)
+}
+
+func StartServiceHandler(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+
+	if err := service.StartService(name); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	resp := KillResponse{Status: "ok", Message: "service démarré"}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
+}
+
+func StopServiceHandler(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+
+	if err := service.StopService(name); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	resp := KillResponse{Status: "ok", Message: "service arrêté"}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
 }
