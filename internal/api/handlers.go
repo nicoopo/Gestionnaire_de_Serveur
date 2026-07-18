@@ -122,3 +122,25 @@ func StopServiceHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
 }
+
+func DisksHandler(w http.ResponseWriter, r *http.Request) {
+	disks, err := system.ListDisks()
+	if err != nil {
+		http.Error(w, "failed to list disks: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(disks)
+}
+
+func GPUHandler(w http.ResponseWriter, r *http.Request) {
+	gpus, err := system.ListGPUs()
+	if err != nil {
+		// pas une erreur bloquante : certaines machines n'ont pas de GPU NVIDIA
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode([]system.GPUInfo{})
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(gpus)
+}

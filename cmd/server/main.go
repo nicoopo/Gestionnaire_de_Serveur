@@ -51,6 +51,8 @@ func main() {
 	protectedAPI.HandleFunc("GET /api/services", api.ServicesHandler)
 	protectedAPI.HandleFunc("POST /api/services/{name}/start", api.StartServiceHandler)
 	protectedAPI.HandleFunc("POST /api/services/{name}/stop", api.StopServiceHandler)
+	protectedAPI.HandleFunc("GET /api/disks", api.DisksHandler)
+	protectedAPI.HandleFunc("GET /api/gpu", api.GPUHandler)
 
 	mux.Handle("/api/", auth.Middleware(protectedAPI))
 

@@ -55,10 +55,6 @@ function renderSystemInfo(data) {
     document.getElementById('ram-bar').innerHTML = segBarHTML(data.ram_percent);
     document.getElementById('ram-sub').textContent = `${(data.ram_used_mb/1024).toFixed(1)} / ${(data.ram_total_mb/1024).toFixed(1)} GB`;
 
-    document.getElementById('disk-value').textContent = `${data.disk_percent.toFixed(1)}%`;
-    document.getElementById('disk-bar').innerHTML = segBarHTML(data.disk_percent);
-    document.getElementById('disk-sub').textContent = `${data.disk_used_gb} / ${data.disk_total_gb} GB`;
-
     document.getElementById('uptime-tag').textContent = formatUptime(data.uptime_seconds);
     document.getElementById('proc-count').textContent = data.process_count;
     document.getElementById('core-count').textContent = `${data.cpu_core_count} cœurs`;
@@ -71,6 +67,57 @@ function renderSystemInfo(data) {
         cell.title = `${pct.toFixed(0)}%`;
         cell.innerHTML = `<style>.core-cell:nth-child(${i + 1})::after{height:${Math.max(pct,4)}%;background:${levelColor(pct)};}</style>`;
         grid.appendChild(cell);
+    });
+}
+
+async function loadDisks() {
+    const res = await authFetch('/api/disks');
+    const data = await res.json();
+
+    const container = document.getElementById('disks-list');
+    container.innerHTML = '';
+
+    data.forEach(d => {
+        const block = document.createElement('div');
+        block.className = 'meter';
+        block.innerHTML = `
+            <div class="meter-label">
+                <span>${d.mountpoint}</span>
+                <span class="meter-value">${d.percent.toFixed(1)}%</span>
+            </div>
+            <div class="segbar">${segBarHTML(d.percent)}</div>
+            <div class="meter-sub">${d.used_gb} / ${d.total_gb} GB · ${d.fstype}</div>
+        `;
+        container.appendChild(block);
+    });
+}
+
+async function loadGPU() {
+    const res = await authFetch('/api/gpu');
+    const data = await res.json();
+
+    const container = document.getElementById('gpu-block');
+    container.innerHTML = '';
+
+    if (data.length === 0) return;
+
+    data.forEach(gpu => {
+        const memPercent = (gpu.mem_used_mb / gpu.mem_total_mb) * 100;
+
+        const block = document.createElement('div');
+        block.innerHTML = `
+            <div class="meter-sub" style="margin-bottom:0.5rem;">${gpu.name} · ${gpu.temp_c.toFixed(0)}°C</div>
+            <div class="meter">
+                <div class="meter-label"><span>GPU</span><span class="meter-value">${gpu.usage_percent.toFixed(0)}%</span></div>
+                <div class="segbar">${segBarHTML(gpu.usage_percent)}</div>
+            </div>
+            <div class="meter">
+                <div class="meter-label"><span>VRAM</span><span class="meter-value">${memPercent.toFixed(0)}%</span></div>
+                <div class="segbar">${segBarHTML(memPercent)}</div>
+                <div class="meter-sub">${gpu.mem_used_mb} / ${gpu.mem_total_mb} MB</div>
+            </div>
+        `;
+        container.appendChild(block);
     });
 }
 
@@ -171,8 +218,12 @@ setInterval(updateClock, 1000);
 connectWS();
 loadProcesses();
 loadServices();
+loadDisks();
+loadGPU();
 
 setInterval(() => {
     loadProcesses(document.getElementById('process-filter').value);
     loadServices();
+    loadDisks();
+    loadGPU();
 }, 5000);
