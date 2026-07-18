@@ -1,51 +1,19 @@
 package main
 
-import "fmt"
+import (
+	"log"
+	"net/http"
 
-type Speaker interface {
-	Speak() string
-}
-
-type Dog struct {
-	Name string
-}
-
-func (d *Dog) Speak() string {
-	return d.Name + "dit Wouf!"
-}
-
-func (d *Dog) Age() int {
-	return 3
-}
-
-type Cat struct {
-	Name string
-}
-
-func (c Cat) Speak() string {
-	return c.Name + "dit Miaou!"
-}
-
-type Bird struct {
-	Name string
-}
-
-func (b Bird) Speak() string {
-	return b.Name + "dit cuicui!"
-}
+	"github.com/nicoopo/Gestionnaire_de_Serveur/internal/api"
+)
 
 func main() {
-	animals := []Speaker{
-		&Dog{Name: "Rex"},
-		Cat{Name: "Felix"},
-		Bird{Name: "TIti"},
-	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /api/ping", api.PingHandler)
+	mux.HandleFunc("GET /api/system", api.SystemHandler)
 
-	for _, a := range animals {
-		fmt.Println(a.Speak())
-		if d, ok := a.(*Dog); ok {
-			fmt.Println("Age:", d.Age())
-		}
-
+	log.Println("Serveur démarré sur :8080")
+	if err := http.ListenAndServe(":8080", mux); err != nil {
+		log.Fatal(err)
 	}
 }
