@@ -85,6 +85,7 @@ func main() {
 	protectedAPI.HandleFunc("GET /api/files", api.ListDirHandler)
 	protectedAPI.HandleFunc("GET /api/files/read", api.ReadFileHandler)
 	protectedAPI.HandleFunc("GET /api/files/download", api.DownloadFileHandler)
+	mux.Handle("/ws/logs", auth.Middleware(http.HandlerFunc(api.LogsWSHandler)))
 
 	mux.Handle("/api/", auth.Middleware(protectedAPI))
 
