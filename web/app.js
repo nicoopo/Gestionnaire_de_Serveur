@@ -217,7 +217,13 @@ function connectWS() {
     };
 
     socket.onmessage = (event) => {
-        renderSystemInfo(JSON.parse(event.data));
+        const msg = JSON.parse(event.data);
+
+        if (msg.type === 'system') {
+            renderSystemInfo(msg.data);
+        } else if (msg.type === 'alerts') {
+            showAlerts(msg.data);
+        }
     };
 
     socket.onclose = () => {
@@ -267,6 +273,25 @@ async function loadHistory() {
     diskHistory = data.map(s => s.disk_percent);
     gpuHistory = data.map(s => s.gpu_percent);
     renderHistoryChart();
+}
+
+
+function showAlerts(alerts) {
+    const container = document.getElementById('alerts-bar');
+
+    container.innerHTML = alerts.map(a => `
+        <div class="alert alert-${a.level}">
+            <span class="alert-dot"></span>
+            ${a.message}
+        </div>
+    `).join('');
+
+    container.style.display = 'flex';
+
+    clearTimeout(showAlerts._timeout);
+    showAlerts._timeout = setTimeout(() => {
+        container.style.display = 'none';
+    }, 6000);
 }
 
 document.getElementById('process-filter').addEventListener('input', (e) => {

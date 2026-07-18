@@ -20,7 +20,7 @@ func main() {
 	}
 
 	history := metrics.NewHistory(150) // 150 échantillons à 2s = 5 minutes
-
+	alertTracker := metrics.NewAlertTracker()
 	mux := http.NewServeMux()
 
 	hub := ws.NewHub()
@@ -37,25 +37,34 @@ func main() {
 				continue
 			}
 
-			// GPU optionnel : 0 si pas de carte NVIDIA détectée
 			var gpuPercent float64
 			if gpus, err := system.ListGPUs(); err == nil && len(gpus) > 0 {
 				gpuPercent = gpus[0].UsagePercent
 			}
 
-			history.Add(metrics.Sample{
+			sample := metrics.Sample{
 				Timestamp:   time.Now().Unix(),
 				CPUPercent:  info.CPUPercent,
 				RAMPercent:  info.RAMPercent,
 				DiskPercent: info.DiskPercent,
 				GPUPercent:  gpuPercent,
-			})
-
-			data, err := json.Marshal(info)
-			if err != nil {
-				continue
 			}
-			hub.Broadcast(data)
+			history.Add(sample)
+
+			// Message système (comme avant, mais enveloppé)
+			sysMsg, err := json.Marshal(ws.Message{Type: "system", Data: info})
+			if err == nil {
+				hub.Broadcast(sysMsg)
+			}
+
+			// Alertes de seuil
+			alerts := alertTracker.Check(sample)
+			if len(alerts) > 0 {
+				alertMsg, err := json.Marshal(ws.Message{Type: "alerts", Data: alerts})
+				if err == nil {
+					hub.Broadcast(alertMsg)
+				}
+			}
 		}
 	}()
 

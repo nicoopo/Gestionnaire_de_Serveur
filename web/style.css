@@ -315,3 +315,55 @@ button.danger:hover { border-color: var(--danger); color: var(--danger); }
     border-radius: 50%;
     margin-right: 0.3rem;
 }
+
+.alerts-bar {
+    display: none;
+    flex-direction: column;
+    gap: 0.4rem;
+    max-width: 1100px;
+    margin: 1rem auto 0;
+    padding: 0 1.2rem;
+}
+
+.alert {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.8rem;
+    border-radius: 6px;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    animation: slideIn 0.2s ease;
+}
+
+.alert-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+}
+
+.alert-ok {
+    background: rgba(95,217,122,0.12);
+    border: 1px solid rgba(95,217,122,0.3);
+    color: var(--ok);
+}
+.alert-ok .alert-dot { background: var(--ok); }
+
+.alert-warning {
+    background: rgba(255,180,84,0.12);
+    border: 1px solid rgba(255,180,84,0.3);
+    color: var(--warn);
+}
+.alert-warning .alert-dot { background: var(--warn); }
+
+.alert-critical {
+    background: rgba(255,107,107,0.12);
+    border: 1px solid rgba(255,107,107,0.3);
+    color: var(--danger);
+}
+.alert-critical .alert-dot { background: var(--danger); animation: pulse 1s ease-in-out infinite; }
+
+@keyframes slideIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
