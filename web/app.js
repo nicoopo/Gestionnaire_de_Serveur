@@ -28,10 +28,7 @@ function updateClock() {
     document.getElementById('clock').textContent = new Date().toLocaleTimeString('fr-FR');
 }
 
-async function loadSystemInfo() {
-    const res = await fetch('/api/system');
-    const data = await res.json();
-
+function renderSystemInfo(data) {
     document.getElementById('cpu-value').textContent = `${data.cpu_percent.toFixed(1)}%`;
     document.getElementById('cpu-bar').innerHTML = segBarHTML(data.cpu_percent);
 
@@ -49,12 +46,11 @@ async function loadSystemInfo() {
 
     const grid = document.getElementById('core-grid');
     grid.innerHTML = '';
-    data.cpu_per_core.forEach(pct => {
+    data.cpu_per_core.forEach((pct, i) => {
         const cell = document.createElement('div');
         cell.className = 'core-cell';
         cell.title = `${pct.toFixed(0)}%`;
-        cell.style.setProperty('--h', `${Math.max(pct, 4)}%`);
-        cell.innerHTML = `<style>.core-cell:nth-child(${grid.children.length + 1})::after{height:${Math.max(pct,4)}%;background:${levelColor(pct)};}</style>`;
+        cell.innerHTML = `<style>.core-cell:nth-child(${i + 1})::after{height:${Math.max(pct,4)}%;background:${levelColor(pct)};}</style>`;
         grid.appendChild(cell);
     });
 }
@@ -126,6 +122,26 @@ async function stopService(name) {
     else alert('Erreur lors de l\'arrêt du service');
 }
 
+function connectWS() {
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    const socket = new WebSocket(`${proto}://${location.host}/ws`);
+
+    socket.onopen = () => {
+        document.getElementById('conn-led').style.background = 'var(--ok)';
+    };
+
+    socket.onmessage = (event) => {
+        renderSystemInfo(JSON.parse(event.data));
+    };
+
+    socket.onclose = () => {
+        document.getElementById('conn-led').style.background = 'var(--danger)';
+        setTimeout(connectWS, 2000); // reconnexion automatique
+    };
+
+    socket.onerror = () => socket.close();
+}
+
 document.getElementById('process-filter').addEventListener('input', (e) => {
     loadProcesses(e.target.value);
 });
@@ -133,11 +149,11 @@ document.getElementById('process-filter').addEventListener('input', (e) => {
 updateClock();
 setInterval(updateClock, 1000);
 
-loadSystemInfo();
+connectWS();
 loadProcesses();
 loadServices();
 
 setInterval(() => {
-    loadSystemInfo();
     loadProcesses(document.getElementById('process-filter').value);
+    loadServices();
 }, 5000);
