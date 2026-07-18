@@ -1,7 +1,9 @@
 package process
 
 import (
+	"fmt"
 	"sort"
+	"strings"
 
 	gopsutilprocess "github.com/shirou/gopsutil/v3/process"
 )
@@ -14,18 +16,23 @@ type ProcessInfo struct {
 	Status     string  `json:"status"`
 }
 
-func ListProcesses() ([]ProcessInfo, error) {
+func ListProcesses(nameFilter string) ([]ProcessInfo, error) {
 	procs, err := gopsutilprocess.Processes()
 	if err != nil {
 		return nil, err
 	}
 
 	result := make([]ProcessInfo, 0, len(procs))
+	nameFilter = strings.ToLower(strings.TrimSpace(nameFilter))
 
 	for _, p := range procs {
 		name, err := p.Name()
 		if err != nil {
-			// Certains process système refusent l'accès, on les ignore
+			continue
+		}
+
+		// Si un filtre est fourni, on ignore les process qui ne matchent pas
+		if nameFilter != "" && !strings.Contains(strings.ToLower(name), nameFilter) {
 			continue
 		}
 
@@ -54,10 +61,22 @@ func ListProcesses() ([]ProcessInfo, error) {
 		})
 	}
 
-	// Tri par utilisation CPU décroissante
 	sort.Slice(result, func(i, j int) bool {
 		return result[i].CPUPercent > result[j].CPUPercent
 	})
 
 	return result, nil
+}
+
+func KillProcess(pid int32) error {
+	p, err := gopsutilprocess.NewProcess(pid)
+	if err != nil {
+		return fmt.Errorf("process %d introuvable: %w", pid, err)
+	}
+
+	if err := p.Kill(); err != nil {
+		return fmt.Errorf("impossible de tuer le process %d: %w", pid, err)
+	}
+
+	return nil
 }

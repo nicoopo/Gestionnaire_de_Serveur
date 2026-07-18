@@ -3,12 +3,18 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	"github.com/nicoopo/Gestionnaire_de_Serveur/internal/process"
 	"github.com/nicoopo/Gestionnaire_de_Serveur/internal/system"
 )
 
 type PingResponse struct {
+	Status  string `json:"status"`
+	Message string `json:"message"`
+}
+
+type KillResponse struct {
 	Status  string `json:"status"`
 	Message string `json:"message"`
 }
@@ -41,7 +47,9 @@ func SystemHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func ProcessesHandler(w http.ResponseWriter, r *http.Request) {
-	procs, err := process.ListProcesses()
+	nameFilter := r.URL.Query().Get("name")
+
+	procs, err := process.ListProcesses(nameFilter)
 	if err != nil {
 		http.Error(w, "failed to list processes: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -52,4 +60,27 @@ func ProcessesHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to encode response", http.StatusInternalServerError)
 		return
 	}
+}
+
+func KillProcessHandler(w http.ResponseWriter, r *http.Request) {
+	pidStr := r.PathValue("pid")
+
+	pid, err := strconv.ParseInt(pidStr, 10, 32)
+	if err != nil {
+		http.Error(w, "pid invalide: "+pidStr, http.StatusBadRequest)
+		return
+	}
+
+	if err := process.KillProcess(int32(pid)); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	resp := KillResponse{
+		Status:  "ok",
+		Message: "process arrêté",
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
 }
