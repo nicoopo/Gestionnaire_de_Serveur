@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/nicoopo/Gestionnaire_de_Serveur/internal/process"
 	"github.com/nicoopo/Gestionnaire_de_Serveur/internal/system"
 )
 
@@ -34,6 +35,20 @@ func SystemHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(info); err != nil {
+		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+		return
+	}
+}
+
+func ProcessesHandler(w http.ResponseWriter, r *http.Request) {
+	procs, err := process.ListProcesses()
+	if err != nil {
+		http.Error(w, "failed to list processes: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(procs); err != nil {
 		http.Error(w, "failed to encode response", http.StatusInternalServerError)
 		return
 	}
