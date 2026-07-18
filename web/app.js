@@ -1,3 +1,22 @@
+const token = localStorage.getItem('token');
+if (!token) {
+    window.location.href = '/login.html';
+}
+
+function authFetch(url, options = {}) {
+    options.headers = {
+        ...(options.headers || {}),
+        'Authorization': `Bearer ${token}`
+    };
+    return fetch(url, options).then(res => {
+        if (res.status === 401) {
+            localStorage.removeItem('token');
+            window.location.href = '/login.html';
+        }
+        return res;
+    });
+}
+
 function segBarHTML(percent, segCount = 24) {
     const lit = Math.round((percent / 100) * segCount);
     let html = '';
@@ -57,7 +76,7 @@ function renderSystemInfo(data) {
 
 async function loadProcesses(filter = '') {
     const url = filter ? `/api/processes?name=${encodeURIComponent(filter)}` : '/api/processes';
-    const res = await fetch(url);
+    const res = await authFetch(url);
     const data = await res.json();
 
     const tbody = document.getElementById('processes-body');
@@ -79,13 +98,13 @@ async function loadProcesses(filter = '') {
 
 async function killProcess(pid) {
     if (!confirm(`Arrêter le processus ${pid} ?`)) return;
-    const res = await fetch(`/api/processes/${pid}/kill`, { method: 'POST' });
+    const res = await authFetch(`/api/processes/${pid}/kill`, { method: 'POST' });
     if (res.ok) loadProcesses(document.getElementById('process-filter').value);
     else alert('Erreur lors de l\'arrêt du processus');
 }
 
 async function loadServices() {
-    const res = await fetch('/api/services');
+    const res = await authFetch('/api/services');
     const data = await res.json();
     const running = data.filter(s => s.status === 'running');
 
@@ -110,21 +129,21 @@ async function loadServices() {
 }
 
 async function startService(name) {
-    const res = await fetch(`/api/services/${name}/start`, { method: 'POST' });
+    const res = await authFetch(`/api/services/${name}/start`, { method: 'POST' });
     if (res.ok) loadServices();
     else alert('Erreur lors du démarrage du service');
 }
 
 async function stopService(name) {
     if (!confirm(`Arrêter le service ${name} ?`)) return;
-    const res = await fetch(`/api/services/${name}/stop`, { method: 'POST' });
+    const res = await authFetch(`/api/services/${name}/stop`, { method: 'POST' });
     if (res.ok) loadServices();
     else alert('Erreur lors de l\'arrêt du service');
 }
 
 function connectWS() {
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-    const socket = new WebSocket(`${proto}://${location.host}/ws`);
+    const socket = new WebSocket(`${proto}://${location.host}/ws?token=${encodeURIComponent(token)}`);
 
     socket.onopen = () => {
         document.getElementById('conn-led').style.background = 'var(--ok)';
@@ -136,7 +155,7 @@ function connectWS() {
 
     socket.onclose = () => {
         document.getElementById('conn-led').style.background = 'var(--danger)';
-        setTimeout(connectWS, 2000); // reconnexion automatique
+        setTimeout(connectWS, 2000);
     };
 
     socket.onerror = () => socket.close();
