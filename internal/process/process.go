@@ -80,3 +80,16 @@ func KillProcess(pid int32) error {
 
 	return nil
 }
+
+// GetProcessName tente de récupérer le nom d'un process, renvoie "inconnu" si indisponible
+func GetProcessName(pid int32) string {
+	p, err := gopsutilprocess.NewProcess(pid)
+	if err != nil {
+		return "inconnu"
+	}
+	name, err := p.Name()
+	if err != nil {
+		return "inconnu"
+	}
+	return name
+}

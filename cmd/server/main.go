@@ -2,8 +2,10 @@ package main
 
 import (
 	"encoding/json"
+	"io"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -27,6 +29,20 @@ func main() {
 	go hub.Run()
 
 	go func() {
+		// Configuration du logger : écrit à la fois sur la console et dans un fichier
+		logFile, err := os.OpenFile("./data/app.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			log.Fatal("impossible d'ouvrir le fichier de log:", err)
+		}
+		defer logFile.Close()
+
+		multiWriter := io.MultiWriter(os.Stdout, logFile)
+		log.SetOutput(multiWriter)
+		log.SetFlags(log.Ldate | log.Ltime)
+
+		if err := godotenv.Load(); err != nil {
+			log.Println("Aucun fichier .env trouvé, utilisation des variables d'environnement système")
+		}
 		ticker := time.NewTicker(2 * time.Second)
 		defer ticker.Stop()
 

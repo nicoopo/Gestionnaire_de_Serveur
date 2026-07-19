@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -73,16 +74,18 @@ func KillProcessHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Récupère le nom avant de tuer le process, pour un log plus lisible
+	processName := process.GetProcessName(int32(pid))
+
 	if err := process.KillProcess(int32(pid)); err != nil {
+		log.Printf("échec arrêt de %s (PID %d): %v", processName, pid, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	resp := KillResponse{
-		Status:  "ok",
-		Message: "process arrêté",
-	}
+	log.Printf("processus arrêté : %s (PID %d)", processName, pid)
 
+	resp := KillResponse{Status: "ok", Message: "process arrêté"}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
 }
@@ -102,9 +105,12 @@ func StartServiceHandler(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
 
 	if err := service.StartService(name); err != nil {
+		log.Printf("échec démarrage du service %s: %v", name, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	log.Printf("service démarré : %s", name)
 
 	resp := KillResponse{Status: "ok", Message: "service démarré"}
 	w.Header().Set("Content-Type", "application/json")
@@ -115,9 +121,12 @@ func StopServiceHandler(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
 
 	if err := service.StopService(name); err != nil {
+		log.Printf("échec arrêt du service %s: %v", name, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	log.Printf("service arrêté : %s", name)
 
 	resp := KillResponse{Status: "ok", Message: "service arrêté"}
 	w.Header().Set("Content-Type", "application/json")
