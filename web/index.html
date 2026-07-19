@@ -20,6 +20,11 @@
     </div>
 </header>
 
+<nav class="tabs">
+    <button class="tab-btn active" data-tab="dashboard">Tableau de bord</button>
+    <button class="tab-btn" data-tab="explorer">Explorateur</button>
+</nav>
+
 <div id="alerts-bar" class="alerts-bar"></div>
 
 <main class="rack">
@@ -113,12 +118,22 @@
     <section class="panel panel-wide">
         <div class="panel-head">
             <h2>Fichiers</h2>
-            <span class="panel-tag" id="current-path">/</span>
+            <div class="search">
+                <span class="prompt">&gt;</span>
+                <input type="text" id="file-search" placeholder="rechercher...">
+            </div>
         </div>
+        <div class="breadcrumb" id="breadcrumb"></div>
         <div class="table-wrap">
             <table>
                 <thead>
-                <tr><th></th><th>Nom</th><th>Taille</th><th>Modifié</th><th></th></tr>
+                <tr>
+                    <th></th>
+                    <th class="sortable" data-sort="name">Nom <span class="sort-arrow"></span></th>
+                    <th class="sortable" data-sort="size">Taille <span class="sort-arrow"></span></th>
+                    <th class="sortable" data-sort="date">Modifié <span class="sort-arrow"></span></th>
+                    <th></th>
+                </tr>
                 </thead>
                 <tbody id="files-body"></tbody>
             </table>
@@ -140,6 +155,45 @@
         <pre id="logs-output" class="file-content" style="max-height:200px;"></pre>
     </section>
 </main>
+
+
+<main class="rack-single tab-content" id="tab-explorer" style="display:none;">
+    <section class="panel panel-full">
+        <div class="panel-head">
+            <h2>Explorateur machine</h2>
+            <div style="display:flex; gap:0.6rem; align-items:center;">
+                <select id="explorer-root-selector" class="root-select"></select>
+                <div class="search">
+                    <span class="prompt">&gt;</span>
+                    <input type="text" id="explorer-search" placeholder="rechercher...">
+                </div>
+            </div>
+        </div>
+        <div class="breadcrumb" id="explorer-breadcrumb"></div>
+        <div class="table-wrap" style="max-height:500px;">
+            <table>
+                <thead>
+                <tr>
+                    <th></th>
+                    <th class="sortable" data-sort="name">Nom <span class="sort-arrow"></span></th>
+                    <th class="sortable" data-sort="size">Taille <span class="sort-arrow"></span></th>
+                    <th class="sortable" data-sort="date">Modifié <span class="sort-arrow"></span></th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody id="explorer-files-body"></tbody>
+            </table>
+        </div>
+        <div id="explorer-file-viewer" style="display:none; margin-top:1rem;">
+            <div class="panel-head">
+                <span class="meter-sub" id="explorer-viewer-filename"></span>
+                <button onclick="closeExplorerViewer()">fermer</button>
+            </div>
+            <pre id="explorer-file-content" class="file-content"></pre>
+        </div>
+    </section>
+</main>
+
 
 <script src="app.js"></script>
 </body>

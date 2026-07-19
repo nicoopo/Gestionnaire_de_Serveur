@@ -98,9 +98,21 @@ func main() {
 	protectedAPI.HandleFunc("GET /api/disks", api.DisksHandler)
 	protectedAPI.HandleFunc("GET /api/gpu", api.GPUHandler)
 	protectedAPI.HandleFunc("GET /api/history", api.HistoryHandler(history))
+
+	// Fichiers sandboxés (data/)
 	protectedAPI.HandleFunc("GET /api/files", api.ListDirHandler)
 	protectedAPI.HandleFunc("GET /api/files/read", api.ReadFileHandler)
 	protectedAPI.HandleFunc("GET /api/files/download", api.DownloadFileHandler)
+
+	// Explorateur machine complète
+	protectedAPI.HandleFunc("GET /api/explorer/roots", api.FileRootsHandler)
+	protectedAPI.HandleFunc("GET /api/explorer/list", api.ExplorerListDirHandler)
+	protectedAPI.HandleFunc("GET /api/explorer/read", api.ExplorerReadFileHandler)
+	protectedAPI.HandleFunc("GET /api/explorer/download", api.ExplorerDownloadFileHandler)
+	protectedAPI.HandleFunc("DELETE /api/files/delete", api.DeleteFileHandler)
+	protectedAPI.HandleFunc("DELETE /api/explorer/delete", api.ExplorerDeleteFileHandler)
+	protectedAPI.HandleFunc("DELETE /api/explorer/delete-dir", api.ExplorerDeleteDirHandler)
+
 	mux.Handle("/ws/logs", auth.Middleware(http.HandlerFunc(api.LogsWSHandler)))
 
 	mux.Handle("/api/", auth.Middleware(protectedAPI))

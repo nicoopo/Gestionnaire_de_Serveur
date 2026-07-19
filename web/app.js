@@ -8,6 +8,23 @@ if (!token) {
     window.location.href = '/login.html';
 }
 
+let explorerLoaded = false;
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+
+        btn.classList.add('active');
+        document.getElementById(`tab-${btn.dataset.tab}`).style.display = '';
+
+        if (btn.dataset.tab === 'explorer' && !explorerLoaded) {
+            loadExplorerRoots();
+            explorerLoaded = true;
+        }
+    });
+});
+
 function authFetch(url, options = {}) {
     options.headers = {
         ...(options.headers || {}),
@@ -52,6 +69,22 @@ function updateClock() {
     document.getElementById('clock').textContent = new Date().toLocaleTimeString('fr-FR');
 }
 
+const fileIcons = {
+    dir: '📁',
+    '.txt': '📄', '.md': '📝', '.log': '📋',
+    '.json': '🔧', '.yml': '🔧', '.yaml': '🔧', '.env': '🔧',
+    '.go': '🐹', '.js': '📜', '.html': '🌐', '.css': '🎨',
+    '.png': '🖼️', '.jpg': '🖼️', '.jpeg': '🖼️', '.gif': '🖼️', '.svg': '🖼️',
+    '.zip': '📦', '.tar': '📦', '.gz': '📦',
+    '.pdf': '📕',
+};
+
+function getFileIcon(entry) {
+    if (entry.is_dir) return fileIcons.dir;
+    const ext = entry.name.substring(entry.name.lastIndexOf('.'));
+    return fileIcons[ext.toLowerCase()] || '📄';
+}
+
 function renderSystemInfo(data) {
     document.getElementById('cpu-value').textContent = `${data.cpu_percent.toFixed(1)}%`;
     document.getElementById('cpu-bar').innerHTML = segBarHTML(data.cpu_percent);
@@ -73,6 +106,7 @@ function renderSystemInfo(data) {
         cell.innerHTML = `<style>.core-cell:nth-child(${i + 1})::after{height:${Math.max(pct,4)}%;background:${levelColor(pct)};}</style>`;
         grid.appendChild(cell);
     });
+
     cpuHistory.push(data.cpu_percent);
     if (cpuHistory.length > maxHistoryPoints) cpuHistory.shift();
 
@@ -134,6 +168,7 @@ async function loadGPU() {
         `;
         container.appendChild(block);
     });
+
     if (data.length > 0) {
         gpuHistory.push(data[0].usage_percent);
         if (gpuHistory.length > maxHistoryPoints) gpuHistory.shift();
@@ -275,7 +310,6 @@ async function loadHistory() {
     renderHistoryChart();
 }
 
-
 function showAlerts(alerts) {
     const container = document.getElementById('alerts-bar');
 
@@ -294,32 +328,42 @@ function showAlerts(alerts) {
     }, 6000);
 }
 
+// ==================== FICHIERS (sandbox data/) ====================
 
 let currentPath = '';
+let currentSort = 'name';
+let currentOrder = 'asc';
+let currentEntries = [];
 
-async function loadFiles(path = '') {
-    currentPath = path;
-    document.getElementById('current-path').textContent = '/' + path;
+function renderBreadcrumb() {
+    const parts = currentPath.split('/').filter(Boolean);
+    let html = '<a onclick="loadFiles(\'\')">racine</a>';
+    let accPath = '';
 
-    const res = await authFetch(`/api/files?path=${encodeURIComponent(path)}`);
-    if (!res.ok) {
-        alert('Erreur lors du chargement du dossier');
-        return;
-    }
-    const data = await res.json();
+    parts.forEach(part => {
+        accPath += (accPath ? '/' : '') + part;
+        html += ` / <a onclick="loadFiles('${accPath}')">${part}</a>`;
+    });
+
+    document.getElementById('breadcrumb').innerHTML = html;
+}
+
+function renderFilesTable() {
+    const searchTerm = document.getElementById('file-search').value.toLowerCase();
+    const filtered = currentEntries.filter(e => e.name.toLowerCase().includes(searchTerm));
 
     const tbody = document.getElementById('files-body');
     tbody.innerHTML = '';
 
-    if (path !== '') {
-        const parentRow = document.createElement('tr');
-        parentRow.innerHTML = `<td>📁</td><td colspan="4"><a href="#" onclick="goUp(); return false;">..</a></td>`;
-        tbody.appendChild(parentRow);
+    if (currentPath !== '') {
+        const row = document.createElement('tr');
+        row.innerHTML = `<td>📁</td><td colspan="4"><a href="#" onclick="goUp(); return false;">..</a></td>`;
+        tbody.appendChild(row);
     }
 
-    data.forEach(entry => {
+    filtered.forEach(entry => {
+        const icon = getFileIcon(entry);
         const row = document.createElement('tr');
-        const icon = entry.is_dir ? '📁' : '📄';
 
         if (entry.is_dir) {
             row.innerHTML = `
@@ -335,17 +379,56 @@ async function loadFiles(path = '') {
                 <td><a href="#" onclick="viewFile('${entry.path}'); return false;">${entry.name}</a></td>
                 <td>${entry.size_kb} Ko</td>
                 <td>${entry.mod_time}</td>
-                <td><button onclick="downloadFile('${entry.path}')">télécharger</button></td>
+                <td>
+                    <button onclick="downloadFile('${entry.path}')">télécharger</button>
+                    <button class="danger" onclick="deleteFile('${entry.path}')">supprimer</button>
+                </td>
             `;
         }
         tbody.appendChild(row);
     });
+
+    updateSortArrows();
+}
+
+function updateSortArrows() {
+    document.querySelectorAll('#tab-dashboard th.sortable').forEach(th => {
+        const arrow = th.querySelector('.sort-arrow');
+        if (th.dataset.sort === currentSort) {
+            arrow.textContent = currentOrder === 'asc' ? '▲' : '▼';
+        } else {
+            arrow.textContent = '';
+        }
+    });
+}
+
+async function loadFiles(path = '') {
+    currentPath = path;
+    renderBreadcrumb();
+
+    const res = await authFetch(`/api/files?path=${encodeURIComponent(path)}&sort=${currentSort}&order=${currentOrder}`);
+    if (!res.ok) {
+        alert('Erreur lors du chargement du dossier');
+        return;
+    }
+    currentEntries = await res.json();
+    renderFilesTable();
 }
 
 function goUp() {
     const parts = currentPath.split('/').filter(Boolean);
     parts.pop();
     loadFiles(parts.join('/'));
+}
+
+function setSortBy(field) {
+    if (currentSort === field) {
+        currentOrder = currentOrder === 'asc' ? 'desc' : 'asc';
+    } else {
+        currentSort = field;
+        currentOrder = 'asc';
+    }
+    loadFiles(currentPath);
 }
 
 async function viewFile(path) {
@@ -371,6 +454,177 @@ function downloadFile(path) {
     window.open(url, '_blank');
 }
 
+document.querySelectorAll('#tab-dashboard th.sortable').forEach(th => {
+    th.addEventListener('click', () => setSortBy(th.dataset.sort));
+});
+
+document.getElementById('file-search').addEventListener('input', renderFilesTable);
+
+// ==================== EXPLORATEUR MACHINE COMPLÈTE ====================
+
+let explorerRoot = '';
+let explorerPath = '';
+let explorerSort = 'name';
+let explorerOrder = 'asc';
+let explorerEntries = [];
+
+async function loadExplorerRoots() {
+    const res = await authFetch('/api/explorer/roots');
+    const roots = await res.json();
+
+    const select = document.getElementById('explorer-root-selector');
+    select.innerHTML = roots.map(r => `<option value="${r}">${r}</option>`).join('');
+
+    select.addEventListener('change', () => {
+        explorerRoot = select.value;
+        loadExplorerFiles('');
+    });
+
+    if (roots.length > 0) {
+        explorerRoot = roots[0];
+        loadExplorerFiles('');
+    }
+}
+
+function renderExplorerBreadcrumb() {
+    const parts = explorerPath.split('/').filter(Boolean);
+    let html = `<a onclick="loadExplorerFiles('')">${explorerRoot}</a>`;
+    let accPath = '';
+
+    parts.forEach(part => {
+        accPath += (accPath ? '/' : '') + part;
+        html += ` / <a onclick="loadExplorerFiles('${accPath}')">${part}</a>`;
+    });
+
+    document.getElementById('explorer-breadcrumb').innerHTML = html;
+}
+
+function renderExplorerTable() {
+    const searchTerm = document.getElementById('explorer-search').value.toLowerCase();
+    const filtered = explorerEntries.filter(e => e.name.toLowerCase().includes(searchTerm));
+
+    const tbody = document.getElementById('explorer-files-body');
+    tbody.innerHTML = '';
+
+    if (explorerPath !== '') {
+        const row = document.createElement('tr');
+        row.innerHTML = `<td>📁</td><td colspan="4"><a href="#" onclick="explorerGoUp(); return false;">..</a></td>`;
+        tbody.appendChild(row);
+    }
+
+    filtered.forEach(entry => {
+        const icon = getFileIcon(entry);
+        const row = document.createElement('tr');
+
+        if (entry.is_dir) {
+            row.innerHTML = `
+                <td>${icon}</td>
+                <td><a href="#" onclick="loadExplorerFiles('${entry.path}'); return false;">${entry.name}</a></td>
+                <td>—</td>
+                <td>${entry.mod_time}</td>
+                <td><button class="danger" onclick="deleteExplorerDir('${entry.path}', '${entry.name}')">supprimer</button></td>
+            `;
+        } else {
+            row.innerHTML = `
+                <td>${icon}</td>
+                <td><a href="#" onclick="viewExplorerFile('${entry.path}'); return false;">${entry.name}</a></td>
+                <td>${entry.size_kb} Ko</td>
+                <td>${entry.mod_time}</td>
+                <td>
+                    <button onclick="downloadExplorerFile('${entry.path}')">télécharger</button>
+                    <button class="danger" onclick="deleteExplorerFile('${entry.path}')">supprimer</button>
+                </td>
+            `;
+        }
+        tbody.appendChild(row);
+    });
+
+    updateExplorerSortArrows();
+}
+
+function updateExplorerSortArrows() {
+    document.querySelectorAll('#tab-explorer th.sortable').forEach(th => {
+        const arrow = th.querySelector('.sort-arrow');
+        if (th.dataset.sort === explorerSort) {
+            arrow.textContent = explorerOrder === 'asc' ? '▲' : '▼';
+        } else {
+            arrow.textContent = '';
+        }
+    });
+}
+
+async function deleteExplorerFile(path) {
+    if (!confirm(`Supprimer définitivement "${path}" sur ${explorerRoot} ? Cette action est irréversible.`)) return;
+
+    const res = await authFetch(`/api/explorer/delete?root=${encodeURIComponent(explorerRoot)}&path=${encodeURIComponent(path)}`, { method: 'DELETE' });
+    if (res.ok) {
+        loadExplorerFiles(explorerPath);
+    } else {
+        const err = await res.text();
+        alert('Erreur: ' + err);
+    }
+}
+
+async function loadExplorerFiles(path = '') {
+    explorerPath = path;
+    renderExplorerBreadcrumb();
+
+    const res = await authFetch(`/api/explorer/list?root=${encodeURIComponent(explorerRoot)}&path=${encodeURIComponent(path)}&sort=${explorerSort}&order=${explorerOrder}`);
+    if (!res.ok) {
+        alert('Erreur lors du chargement du dossier');
+        return;
+    }
+    explorerEntries = await res.json();
+    renderExplorerTable();
+}
+
+function explorerGoUp() {
+    const parts = explorerPath.split('/').filter(Boolean);
+    parts.pop();
+    loadExplorerFiles(parts.join('/'));
+}
+
+function setExplorerSortBy(field) {
+    if (explorerSort === field) {
+        explorerOrder = explorerOrder === 'asc' ? 'desc' : 'asc';
+    } else {
+        explorerSort = field;
+        explorerOrder = 'asc';
+    }
+    loadExplorerFiles(explorerPath);
+}
+
+async function viewExplorerFile(path) {
+    const res = await authFetch(`/api/explorer/read?root=${encodeURIComponent(explorerRoot)}&path=${encodeURIComponent(path)}`);
+    if (!res.ok) {
+        const err = await res.text();
+        alert('Erreur: ' + err);
+        return;
+    }
+    const data = await res.json();
+
+    document.getElementById('explorer-viewer-filename').textContent = path;
+    document.getElementById('explorer-file-content').textContent = data.content;
+    document.getElementById('explorer-file-viewer').style.display = 'block';
+}
+
+function closeExplorerViewer() {
+    document.getElementById('explorer-file-viewer').style.display = 'none';
+}
+
+function downloadExplorerFile(path) {
+    const url = `/api/explorer/download?root=${encodeURIComponent(explorerRoot)}&path=${encodeURIComponent(path)}&token=${encodeURIComponent(token)}`;
+    window.open(url, '_blank');
+}
+
+document.querySelectorAll('#tab-explorer th.sortable').forEach(th => {
+    th.addEventListener('click', () => setExplorerSortBy(th.dataset.sort));
+});
+
+document.getElementById('explorer-search').addEventListener('input', renderExplorerTable);
+
+// ==================== LOGS ====================
+
 function connectLogsWS() {
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
     const socket = new WebSocket(`${proto}://${location.host}/ws/logs?token=${encodeURIComponent(token)}`);
@@ -384,7 +638,7 @@ function connectLogsWS() {
         if (msg.type === 'log_line') {
             const output = document.getElementById('logs-output');
             output.textContent += msg.line;
-            output.scrollTop = output.scrollHeight; // auto-scroll vers le bas
+            output.scrollTop = output.scrollHeight;
         }
     };
 
@@ -395,6 +649,36 @@ function connectLogsWS() {
 
     socket.onerror = () => socket.close();
 }
+
+async function deleteFile(path) {
+    if (!confirm(`Supprimer définitivement "${path}" ? Cette action est irréversible.`)) return;
+
+    const res = await authFetch(`/api/files/delete?path=${encodeURIComponent(path)}`, { method: 'DELETE' });
+    if (res.ok) {
+        loadFiles(currentPath);
+    } else {
+        const err = await res.text();
+        alert('Erreur: ' + err);
+    }
+}
+
+async function deleteExplorerDir(path, name) {
+    const confirmation = prompt(`Pour supprimer définitivement le dossier "${name}" et TOUT son contenu, tape son nom exact :`);
+    if (confirmation !== name) {
+        if (confirmation !== null) alert('Nom incorrect, suppression annulée.');
+        return;
+    }
+
+    const res = await authFetch(`/api/explorer/delete-dir?root=${encodeURIComponent(explorerRoot)}&path=${encodeURIComponent(path)}`, { method: 'DELETE' });
+    if (res.ok) {
+        loadExplorerFiles(explorerPath);
+    } else {
+        const err = await res.text();
+        alert('Erreur: ' + err);
+    }
+}
+
+// ==================== DÉMARRAGE ====================
 
 document.getElementById('process-filter').addEventListener('input', (e) => {
     loadProcesses(e.target.value);
