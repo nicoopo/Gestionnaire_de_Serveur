@@ -38,12 +38,26 @@ func (t *AlertTracker) Check(s Sample) []Alert {
 
 func (t *AlertTracker) checkMetric(name string, value float64) []Alert {
 	level := levelFor(value)
-	previous := t.states[name]
+	previous, seen := t.states[name]
+	t.states[name] = level
+
+	if !seen {
+		// Première mesure pour cette métrique : on initialise l'état sans générer d'alerte,
+		// sauf si on démarre déjà en zone à risque (l'utilisateur doit quand même être prévenu).
+		if level == "ok" {
+			return nil
+		}
+		return []Alert{{
+			Level:   level,
+			Metric:  name,
+			Value:   value,
+			Message: name + " " + levelLabel(level) + " : " + strconv.Itoa(int(value)) + "%",
+		}}
+	}
 
 	if level == previous {
-		return nil // pas de changement, on ne renvoie rien
+		return nil
 	}
-	t.states[name] = level
 
 	if level == "ok" {
 		return []Alert{{
