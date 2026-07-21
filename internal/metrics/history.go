@@ -8,6 +8,8 @@ type Sample struct {
 	RAMPercent  float64 `json:"ram_percent"`
 	DiskPercent float64 `json:"disk_percent"`
 	GPUPercent  float64 `json:"gpu_percent"`
+	UploadKBs   float64 `json:"upload_kbs"`
+	DownloadKBs float64 `json:"download_kbs"`
 }
 
 type History struct {

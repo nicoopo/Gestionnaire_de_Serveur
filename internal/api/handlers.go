@@ -161,3 +161,13 @@ func HistoryHandler(h *metrics.History) http.HandlerFunc {
 		json.NewEncoder(w).Encode(h.All())
 	}
 }
+
+func NetworkHandler(w http.ResponseWriter, r *http.Request) {
+	interfaces, err := system.ListInterfaces()
+	if err != nil {
+		http.Error(w, "failed to list interfaces: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(interfaces)
+}

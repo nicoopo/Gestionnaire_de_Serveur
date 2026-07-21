@@ -4,6 +4,8 @@ let cpuHistory = [];
 let ramHistory = [];
 let diskHistory = [];
 let gpuHistory = [];
+let uploadHistory = [];
+let downloadHistory = [];
 if (!token) {
     window.location.href = '/login.html';
 }
@@ -85,6 +87,7 @@ function getFileIcon(entry) {
     return fileIcons[ext.toLowerCase()] || '📄';
 }
 
+
 function renderSystemInfo(data) {
     document.getElementById('cpu-value').textContent = `${data.cpu_percent.toFixed(1)}%`;
     document.getElementById('cpu-bar').innerHTML = segBarHTML(data.cpu_percent);
@@ -115,6 +118,18 @@ function renderSystemInfo(data) {
 
     diskHistory.push(data.disk_percent);
     if (diskHistory.length > maxHistoryPoints) diskHistory.shift();
+
+
+    document.getElementById('net-value').innerHTML =
+        `<span class="net-arrow-up">↑ ${formatSpeed(data.upload_kbs)}</span> &nbsp; <span class="net-arrow-down">↓ ${formatSpeed(data.download_kbs)}</span>`;
+
+    uploadHistory.push(data.upload_kbs);
+    if (uploadHistory.length > maxHistoryPoints) uploadHistory.shift();
+
+    downloadHistory.push(data.download_kbs);
+    if (downloadHistory.length > maxHistoryPoints) downloadHistory.shift();
+
+    renderNetSparkline();
 
     renderHistoryChart();
 }
@@ -174,6 +189,35 @@ async function loadGPU() {
         if (gpuHistory.length > maxHistoryPoints) gpuHistory.shift();
         renderHistoryChart();
     }
+}
+
+
+function formatSpeed(kbs) {
+    if (kbs >= 1024) return (kbs / 1024).toFixed(1) + ' MB/s';
+    return kbs.toFixed(0) + ' KB/s';
+}
+
+function renderNetSparkline() {
+    const width = 280, height = 40;
+    const maxVal = Math.max(...uploadHistory, ...downloadHistory, 1); // évite division par zéro
+
+    const buildPath = (values) => {
+        if (values.length < 2) return '';
+        const step = width / (maxHistoryPoints - 1);
+        const offset = maxHistoryPoints - values.length;
+        return values.map((v, i) => {
+            const x = (offset + i) * step;
+            const y = height - (v / maxVal) * height;
+            return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
+        }).join(' ');
+    };
+
+    document.getElementById('net-sparkline').innerHTML = `
+        <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" style="width:100%;height:40px;">
+            <path d="${buildPath(downloadHistory)}" fill="none" stroke="var(--ok)" stroke-width="1.5"/>
+            <path d="${buildPath(uploadHistory)}" fill="none" stroke="var(--danger)" stroke-width="1.5"/>
+        </svg>
+    `;
 }
 
 async function loadProcesses(filter = '') {

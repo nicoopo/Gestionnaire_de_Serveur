@@ -2,10 +2,8 @@ package main
 
 import (
 	"encoding/json"
-	"io"
 	"log"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -29,22 +27,12 @@ func main() {
 	go hub.Run()
 
 	go func() {
-		// Configuration du logger : écrit à la fois sur la console et dans un fichier
-		logFile, err := os.OpenFile("./data/app.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if err != nil {
-			log.Fatal("impossible d'ouvrir le fichier de log:", err)
-		}
-		defer logFile.Close()
-
-		multiWriter := io.MultiWriter(os.Stdout, logFile)
-		log.SetOutput(multiWriter)
-		log.SetFlags(log.Ldate | log.Ltime)
-
-		if err := godotenv.Load(); err != nil {
-			log.Println("Aucun fichier .env trouvé, utilisation des variables d'environnement système")
-		}
 		ticker := time.NewTicker(2 * time.Second)
 		defer ticker.Stop()
+
+		var lastSent, lastRecv uint64
+		var lastTime time.Time
+		firstTick := true
 
 		for range ticker.C {
 			info, err := system.GetSystemInfo()
@@ -58,22 +46,49 @@ func main() {
 				gpuPercent = gpus[0].UsagePercent
 			}
 
+			// Calcul du débit réseau par delta entre deux mesures
+			var uploadKBs, downloadKBs float64
+			sent, recv, err := system.GetNetworkTotals()
+			now := time.Now()
+			if err == nil {
+				if !firstTick {
+					elapsed := now.Sub(lastTime).Seconds()
+					if elapsed > 0 {
+						uploadKBs = float64(sent-lastSent) / 1024 / elapsed
+						downloadKBs = float64(recv-lastRecv) / 1024 / elapsed
+					}
+				}
+				lastSent, lastRecv, lastTime = sent, recv, now
+				firstTick = false
+			}
+
 			sample := metrics.Sample{
-				Timestamp:   time.Now().Unix(),
+				Timestamp:   now.Unix(),
 				CPUPercent:  info.CPUPercent,
 				RAMPercent:  info.RAMPercent,
 				DiskPercent: info.DiskPercent,
 				GPUPercent:  gpuPercent,
+				UploadKBs:   uploadKBs,
+				DownloadKBs: downloadKBs,
 			}
 			history.Add(sample)
 
-			// Message système (comme avant, mais enveloppé)
-			sysMsg, err := json.Marshal(ws.Message{Type: "system", Data: info})
+			// On enrichit le payload broadcast avec le débit réseau
+			payload := struct {
+				system.SystemInfo
+				UploadKBs   float64 `json:"upload_kbs"`
+				DownloadKBs float64 `json:"download_kbs"`
+			}{
+				SystemInfo:  *info,
+				UploadKBs:   uploadKBs,
+				DownloadKBs: downloadKBs,
+			}
+
+			sysMsg, err := json.Marshal(ws.Message{Type: "system", Data: payload})
 			if err == nil {
 				hub.Broadcast(sysMsg)
 			}
 
-			// Alertes de seuil
 			alerts := alertTracker.Check(sample)
 			if len(alerts) > 0 {
 				alertMsg, err := json.Marshal(ws.Message{Type: "alerts", Data: alerts})
@@ -112,6 +127,8 @@ func main() {
 	protectedAPI.HandleFunc("DELETE /api/files/delete", api.DeleteFileHandler)
 	protectedAPI.HandleFunc("DELETE /api/explorer/delete", api.ExplorerDeleteFileHandler)
 	protectedAPI.HandleFunc("DELETE /api/explorer/delete-dir", api.ExplorerDeleteDirHandler)
+
+	protectedAPI.HandleFunc("GET /api/network", api.NetworkHandler)
 
 	mux.Handle("/ws/logs", auth.Middleware(http.HandlerFunc(api.LogsWSHandler)))
 

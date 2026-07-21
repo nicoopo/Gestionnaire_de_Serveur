@@ -450,3 +450,6 @@ th.sortable:hover { color: var(--accent); }
     border-radius: 10px;
     padding: 1.2rem;
 }
+
+.net-arrow-up { color: var(--danger); }
+.net-arrow-down { color: var(--ok); }
