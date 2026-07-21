@@ -10,6 +10,7 @@ import (
 	"github.com/nicoopo/Gestionnaire_de_Serveur/internal/api"
 	"github.com/nicoopo/Gestionnaire_de_Serveur/internal/auth"
 	"github.com/nicoopo/Gestionnaire_de_Serveur/internal/metrics"
+	"github.com/nicoopo/Gestionnaire_de_Serveur/internal/network"
 	"github.com/nicoopo/Gestionnaire_de_Serveur/internal/system"
 	"github.com/nicoopo/Gestionnaire_de_Serveur/internal/ws"
 )
@@ -24,6 +25,7 @@ func main() {
 	mux := http.NewServeMux()
 
 	hub := ws.NewHub()
+	network.StartProcessMapRefresher()
 	go hub.Run()
 
 	go func() {
@@ -129,6 +131,8 @@ func main() {
 	protectedAPI.HandleFunc("DELETE /api/explorer/delete-dir", api.ExplorerDeleteDirHandler)
 
 	protectedAPI.HandleFunc("GET /api/network", api.NetworkHandler)
+	protectedAPI.HandleFunc("GET /api/network/interfaces", api.NetworkInterfacesHandler)
+	mux.Handle("/ws/capture", auth.Middleware(http.HandlerFunc(api.CaptureWSHandler)))
 
 	mux.Handle("/ws/logs", auth.Middleware(http.HandlerFunc(api.LogsWSHandler)))
 
