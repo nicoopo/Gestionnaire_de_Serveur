@@ -20,7 +20,7 @@ func main() {
 		log.Println("Aucun fichier .env trouvé, utilisation des variables d'environnement système")
 	}
 
-	history := metrics.NewHistory(150) // 150 échantillons à 2s = 5 minutes
+	history := metrics.NewHistory(150)
 	alertTracker := metrics.NewAlertTracker()
 	mux := http.NewServeMux()
 
@@ -132,6 +132,9 @@ func main() {
 
 	protectedAPI.HandleFunc("GET /api/network", api.NetworkHandler)
 	protectedAPI.HandleFunc("GET /api/network/interfaces", api.NetworkInterfacesHandler)
+
+	protectedAPI.HandleFunc("GET /api/devices", api.DevicesHandler)
+
 	mux.Handle("/ws/capture", auth.Middleware(http.HandlerFunc(api.CaptureWSHandler)))
 
 	mux.Handle("/ws/logs", auth.Middleware(http.HandlerFunc(api.LogsWSHandler)))
@@ -145,7 +148,10 @@ func main() {
 	mux.HandleFunc("GET /api/ping", api.PingHandler)
 
 	fs := http.FileServer(http.Dir("./web"))
-	mux.Handle("/", fs)
+	mux.Handle("/css/", fs)
+	mux.Handle("/js/", fs)
+	mux.Handle("/login.html", fs)
+	mux.HandleFunc("GET /{$}", api.DashboardPageHandler)
 
 	log.Println("Serveur démarré sur :8080")
 	if err := http.ListenAndServe(":8080", mux); err != nil {

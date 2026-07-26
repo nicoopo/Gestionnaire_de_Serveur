@@ -1,0 +1,188 @@
+/* --- meters --- */
+.meter { margin-bottom: 1.1rem; }
+
+.meter-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    margin-bottom: 0.35rem;
+}
+
+.meter-value {
+    font-family: var(--font-mono);
+    color: var(--accent);
+}
+
+.meter-sub {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    margin-top: 0.25rem;
+}
+
+.segbar {
+    display: flex;
+    gap: 2px;
+    height: 14px;
+}
+
+.segbar .seg {
+    flex: 1;
+    border-radius: 2px;
+    background: var(--surface-2);
+}
+
+.segbar .seg.lit-ok { background: var(--ok); }
+.segbar .seg.lit-warn { background: var(--warn); }
+.segbar .seg.lit-danger { background: var(--danger); }
+
+.stat-row { display: flex; gap: 1.5rem; margin-top: 0.6rem; }
+
+.stat-label {
+    display: block;
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.stat-value {
+    font-family: var(--font-mono);
+    font-size: 1.3rem;
+    color: var(--text);
+}
+
+/* --- search / inputs --- */
+.search {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.3rem 0.6rem;
+}
+
+.search .prompt { color: var(--accent); font-family: var(--font-mono); }
+
+.search input {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    width: 180px;
+}
+
+.root-select {
+    background: var(--surface-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.3rem 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+}
+
+/* --- breadcrumb --- */
+.breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-bottom: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.breadcrumb a {
+    color: var(--accent);
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.breadcrumb a:hover { text-decoration: underline; }
+
+/* --- tables --- */
+.table-wrap { max-height: 340px; overflow-y: auto; }
+
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+
+th {
+    position: sticky;
+    top: 0;
+    background: var(--surface);
+    text-align: left;
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    padding: 0.5rem 0.6rem;
+    border-bottom: 1px solid var(--border);
+}
+
+th.sortable {
+    cursor: pointer;
+    user-select: none;
+}
+
+th.sortable:hover { color: var(--accent); }
+
+.sort-arrow { font-size: 0.65rem; }
+
+td {
+    padding: 0.45rem 0.6rem;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--font-mono);
+}
+
+tbody tr:hover { background: var(--surface-2); }
+
+.status-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    margin-right: 0.4rem;
+}
+
+.status-dot.running { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
+.status-dot.stopped { background: var(--text-dim); }
+
+.file-icon { margin-right: 0.4rem; }
+
+/* --- buttons --- */
+button {
+    background: var(--surface-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 0.25rem 0.65rem;
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    font-size: 0.78rem;
+    margin-right: 0.3rem;
+    transition: border-color 0.15s ease;
+}
+
+button:hover { border-color: var(--accent); color: var(--accent); }
+
+button.danger:hover { border-color: var(--danger); color: var(--danger); }
+
+/* --- file viewer --- */
+.file-content {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.8rem;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    max-height: 300px;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+}

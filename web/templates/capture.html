@@ -1,0 +1,33 @@
+{{define "capture"}}
+<main class="rack-single tab-content" id="tab-capture" style="display:none;">
+    <section class="panel panel-full">
+        <div class="panel-head">
+            <h2>Capture de paquets</h2>
+            <div style="display:flex; gap:0.6rem; align-items:center;">
+                <select id="iface-selector" class="root-select"></select>
+                <button id="capture-toggle" onclick="toggleCapture()">démarrer</button>
+            </div>
+        </div>
+
+        <div class="capture-filters">
+            <label><input type="checkbox" class="proto-filter" value="TCP" checked> TCP</label>
+            <label><input type="checkbox" class="proto-filter" value="UDP" checked> UDP</label>
+            <label><input type="checkbox" class="proto-filter" value="DNS" checked> DNS</label>
+            <label><input type="checkbox" class="proto-filter" value="ICMP" checked> ICMP</label>
+            <label><input type="checkbox" class="proto-filter" value="autre" checked> Autre</label>
+            <input type="text" id="capture-search" placeholder="filtrer par IP/hôte...">
+        </div>
+
+        <div id="capture-stats" class="capture-stats"></div>
+
+        <div class="table-wrap" style="max-height:400px;">
+            <table>
+                <thead>
+                    <tr><th>Heure</th><th>Source</th><th>Destination</th><th>Proto</th><th>Flags</th><th>Processus</th><th>Taille</th></tr>
+                </thead>
+                <tbody id="capture-body"></tbody>
+            </table>
+        </div>
+    </section>
+</main>
+{{end}}

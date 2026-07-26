@@ -5,48 +5,50 @@
     <title>server-manager — connexion</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/pages.css">
 </head>
 <body class="login-body">
-<form class="login-box" id="login-form">
-    <div class="brand" style="margin-bottom: 1.2rem;">server-manager</div>
-    <div class="search" style="width: 100%; margin-bottom: 0.8rem;">
-        <span class="prompt">&gt;</span>
-        <input type="password" id="password" placeholder="mot de passe" style="width: 100%;" autofocus>
-    </div>
-    <button type="submit" style="width: 100%; padding: 0.5rem;">se connecter</button>
-    <p id="login-error" style="color: var(--danger); font-size: 0.8rem; margin-top: 0.6rem; display: none;">
-        mot de passe incorrect
-    </p>
-</form>
+    <form class="login-box" id="login-form">
+        <div class="brand" style="margin-bottom: 1.2rem;">server-manager</div>
+        <div class="search" style="width: 100%; margin-bottom: 0.8rem;">
+            <span class="prompt">&gt;</span>
+            <input type="password" id="password" placeholder="mot de passe" style="width: 100%;" autofocus>
+        </div>
+        <button type="submit" style="width: 100%; padding: 0.5rem;">se connecter</button>
+        <p id="login-error" style="color: var(--danger); font-size: 0.8rem; margin-top: 0.6rem; display: none;">
+            mot de passe incorrect
+        </p>
+    </form>
 
-<script>
-    document.getElementById('login-form').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const password = document.getElementById('password').value;
-        const errorEl = document.getElementById('login-error');
-        errorEl.style.display = 'none';
+    <script>
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const password = document.getElementById('password').value;
+            const errorEl = document.getElementById('login-error');
+            errorEl.style.display = 'none';
 
-        try {
-            const res = await fetch('/api/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ password })
-            });
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password })
+                });
 
-            if (!res.ok) {
+                if (!res.ok) {
+                    errorEl.style.display = 'block';
+                    return;
+                }
+
+                const data = await res.json();
+                localStorage.setItem('token', data.token);
+                window.location.href = '/';
+            } catch (err) {
+                errorEl.textContent = 'erreur de connexion au serveur';
                 errorEl.style.display = 'block';
-                return;
             }
-
-            const data = await res.json();
-            localStorage.setItem('token', data.token);
-            window.location.href = '/';
-        } catch (err) {
-            errorEl.textContent = 'erreur de connexion au serveur';
-            errorEl.style.display = 'block';
-        }
-    });
-</script>
+        });
+    </script>
 </body>
 </html>

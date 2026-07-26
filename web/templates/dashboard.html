@@ -1,0 +1,141 @@
+{{define "dashboard"}}
+<main class="rack tab-content" id="tab-dashboard">
+    <!-- SYSTEM -->
+    <section class="panel panel-system">
+        <div class="panel-head">
+            <h2>Système</h2>
+            <span class="panel-tag" id="uptime-tag">uptime --</span>
+        </div>
+
+        <div class="meters">
+            <div class="meter">
+                <div class="meter-label">
+                    <span>CPU</span>
+                    <span class="meter-value" id="cpu-value">--%</span>
+                </div>
+                <div class="segbar" id="cpu-bar"></div>
+            </div>
+            <div class="meter">
+                <div class="meter-label">
+                    <span>RAM</span>
+                    <span class="meter-value" id="ram-value">--%</span>
+                </div>
+                <div class="segbar" id="ram-bar"></div>
+                <div class="meter-sub" id="ram-sub"></div>
+            </div>
+        </div>
+
+        <div id="disks-list"></div>
+
+        <div class="cores-block">
+            <div class="meter-label"><span>Cœurs</span><span class="meter-value" id="core-count">--</span></div>
+            <div class="core-grid" id="core-grid"></div>
+        </div>
+
+        <div id="gpu-block"></div>
+
+        <div class="meter">
+            <div class="meter-label">
+                <span>Réseau</span>
+                <span class="meter-value" id="net-value"></span>
+            </div>
+            <div id="net-sparkline"></div>
+        </div>
+
+        <div class="stat-row">
+            <div class="stat"><span class="stat-label">Processus</span><span class="stat-value" id="proc-count">--</span></div>
+        </div>
+    </section>
+
+    <!-- PROCESSES -->
+    <section class="panel panel-wide">
+        <div class="panel-head">
+            <h2>Processus</h2>
+            <div class="search">
+                <span class="prompt">&gt;</span>
+                <input type="text" id="process-filter" placeholder="filtrer par nom...">
+            </div>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr><th>PID</th><th>Nom</th><th>CPU</th><th>RAM</th><th>Statut</th><th></th></tr>
+                </thead>
+                <tbody id="processes-body"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- SERVICES -->
+    <section class="panel panel-wide">
+        <div class="panel-head">
+            <h2>Services actifs</h2>
+            <span class="panel-tag" id="services-count">-- en ligne</span>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr><th></th><th>Nom</th><th>Statut</th><th></th></tr>
+                </thead>
+                <tbody id="services-body"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- HISTORY -->
+    <section class="panel panel-wide">
+        <div class="panel-head">
+            <h2>Historique</h2>
+            <div class="legend">
+                <span><i class="dot" style="background:var(--accent)"></i>CPU</span>
+                <span><i class="dot" style="background:var(--ok)"></i>RAM</span>
+                <span><i class="dot" style="background:#7aa2f7"></i>Disque</span>
+                <span><i class="dot" style="background:#c678dd"></i>GPU</span>
+            </div>
+        </div>
+        <div id="history-chart"></div>
+    </section>
+
+    <!-- FILES (data/) -->
+    <section class="panel panel-wide">
+        <div class="panel-head">
+            <h2>Fichiers</h2>
+            <div class="search">
+                <span class="prompt">&gt;</span>
+                <input type="text" id="file-search" placeholder="rechercher...">
+            </div>
+        </div>
+        <div class="breadcrumb" id="breadcrumb"></div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th class="sortable" data-sort="name">Nom <span class="sort-arrow"></span></th>
+                        <th class="sortable" data-sort="size">Taille <span class="sort-arrow"></span></th>
+                        <th class="sortable" data-sort="date">Modifié <span class="sort-arrow"></span></th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="files-body"></tbody>
+            </table>
+        </div>
+        <div id="file-viewer" style="display:none; margin-top:1rem;">
+            <div class="panel-head">
+                <span class="meter-sub" id="viewer-filename"></span>
+                <button onclick="closeFileViewer()">fermer</button>
+            </div>
+            <pre id="file-content" class="file-content"></pre>
+        </div>
+    </section>
+
+    <!-- LOGS -->
+    <section class="panel panel-wide">
+        <div class="panel-head">
+            <h2>Logs</h2>
+            <span class="led" id="logs-led" style="background:var(--text-dim);"></span>
+        </div>
+        <pre id="logs-output" class="file-content" style="max-height:200px;"></pre>
+    </section>
+</main>
+{{end}}

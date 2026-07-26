@@ -1,0 +1,38 @@
+{{define "explorer"}}
+<main class="rack-single tab-content" id="tab-explorer" style="display:none;">
+    <section class="panel panel-full">
+        <div class="panel-head">
+            <h2>Explorateur machine</h2>
+            <div style="display:flex; gap:0.6rem; align-items:center;">
+                <select id="explorer-root-selector" class="root-select"></select>
+                <div class="search">
+                    <span class="prompt">&gt;</span>
+                    <input type="text" id="explorer-search" placeholder="rechercher...">
+                </div>
+            </div>
+        </div>
+        <div class="breadcrumb" id="explorer-breadcrumb"></div>
+        <div class="table-wrap" style="max-height:500px;">
+            <table>
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th class="sortable" data-sort="name">Nom <span class="sort-arrow"></span></th>
+                        <th class="sortable" data-sort="size">Taille <span class="sort-arrow"></span></th>
+                        <th class="sortable" data-sort="date">Modifié <span class="sort-arrow"></span></th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="explorer-files-body"></tbody>
+            </table>
+        </div>
+        <div id="explorer-file-viewer" style="display:none; margin-top:1rem;">
+            <div class="panel-head">
+                <span class="meter-sub" id="explorer-viewer-filename"></span>
+                <button onclick="closeExplorerViewer()">fermer</button>
+            </div>
+            <pre id="explorer-file-content" class="file-content"></pre>
+        </div>
+    </section>
+</main>
+{{end}}

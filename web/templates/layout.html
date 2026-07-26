@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>server-manager</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/pages.css">
+</head>
+<body>
+    <header class="topbar">
+        <div class="topbar-left">
+            <span class="led" id="conn-led"></span>
+            <span class="brand">server-manager</span>
+            <span class="brand-sub">// panneau de contrôle</span>
+        </div>
+        <div class="topbar-right">
+            <span id="clock">--:--:--</span>
+        </div>
+    </header>
+
+    <div id="alerts-bar" class="alerts-bar"></div>
+
+    <nav class="tabs">
+        <button class="tab-btn active" data-tab="dashboard">Tableau de bord</button>
+        <button class="tab-btn" data-tab="explorer">Explorateur</button>
+        <button class="tab-btn" data-tab="capture">Capture réseau</button>
+        <button class="tab-btn" data-tab="devices">Périphériques</button>
+    </nav>
+
+    {{template "dashboard" .}}
+    {{template "explorer" .}}
+    {{template "capture" .}}
+    {{template "devices" .}}
+
+    <script src="/js/auth.js"></script>
+    <script src="/js/utils.js"></script>
+    <script src="/js/tabs.js"></script>
+    <script src="/js/dashboard.js"></script>
+    <script src="/js/files-explorer.js"></script>
+    <script src="/js/machine-explorer.js"></script>
+    <script src="/js/logs.js"></script>
+    <script src="/js/capture.js"></script>
+    <script src="/js/devices.js"></script>
+    <script src="/js/main.js"></script>
+</body>
+</html>
