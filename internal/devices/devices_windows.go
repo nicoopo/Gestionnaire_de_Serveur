@@ -1,7 +1,10 @@
 package devices
 
 import (
+	"encoding/json"
 	"log"
+	"os/exec"
+	"strconv"
 	"strings"
 
 	"github.com/nicoopo/Gestionnaire_de_Serveur/internal/system"
@@ -23,18 +26,21 @@ type win32PnPMouse struct {
 	Status   string
 }
 
+// wmiMonitorIDJSON reçoit le résultat de la requête WmiMonitorID passée par PowerShell
+// (voir winMonitorsViaEDID) : les propriétés de type tableau (ManufacturerName,
+// UserFriendlyName) sont aplaties en chaîne côté PowerShell avant le JSON, car
+// yusufpapurcu/wmi ne supporte pas les types tableau et panique dessus.
+type wmiMonitorIDJSON struct {
+	InstanceName     string `json:"InstanceName"`
+	ManufacturerName string `json:"ManufacturerName"`
+	UserFriendlyName string `json:"UserFriendlyName"`
+	Active           bool   `json:"Active"`
+}
+
 type win32PnPCamera struct {
 	Name         string
 	Manufacturer string
 	Status       string
-}
-
-type win32DesktopMonitor struct {
-	Name                string
-	MonitorManufacturer string
-	ScreenWidth         uint32
-	ScreenHeight        uint32
-	Status              string
 }
 
 type win32PnPHID struct {
@@ -118,7 +124,7 @@ func GetDevicesSummary() (*DevicesSummary, error) {
 	queryTo(&summary.Keyboards, "SELECT Name, DeviceID, Status FROM Win32_PnPEntity WHERE PNPClass='Keyboard'", winPnPKeyboards)
 	queryTo(&summary.Mice, "SELECT Name, DeviceID, Status FROM Win32_PnPEntity WHERE PNPClass='Mouse'", winPnPMice)
 	queryTo(&summary.Cameras, "SELECT Name, Manufacturer, Status FROM Win32_PnPEntity WHERE PNPClass='Camera'", winCameras)
-	queryTo(&summary.Monitors, "SELECT Name, MonitorManufacturer, ScreenWidth, ScreenHeight, Status FROM Win32_DesktopMonitor", winMonitors)
+	summary.Monitors = winMonitorsViaEDID()
 	queryTo(&summary.AudioDevices, "SELECT Name, Manufacturer, Status FROM Win32_SoundDevice", winAudio)
 	queryTo(&summary.USBDevices, "SELECT Name, Manufacturer, Status FROM Win32_PnPEntity WHERE PNPClass='USB'", winUSB)
 	queryTo(&summary.StorageDrives, "SELECT Model, Size, Status FROM Win32_DiskDrive", winStorage)
@@ -214,16 +220,80 @@ func winCameras(raw []win32PnPCamera) []DeviceInfo {
 	return out
 }
 
-func winMonitors(raw []win32DesktopMonitor) []DeviceInfo {
+// winMonitorsViaEDID passe par PowerShell/CIM plutôt que par wmi.QueryNamespace :
+// la lib yusufpapurcu/wmi ne supporte pas les propriétés de type tableau
+// (ManufacturerName/UserFriendlyName sont des []uint16 côté WMI), ce qui provoquait
+// un panic reflect côté Go ("call of reflect.Value.Uint on int32 Value"). PowerShell
+// aplatit les tableaux en chaîne avant le JSON, donc plus de mapping struct côté wmi.
+func winMonitorsViaEDID() []DeviceInfo {
+	psCmd := `Get-CimInstance -Namespace root\wmi -ClassName WmiMonitorID | ForEach-Object {
+		[PSCustomObject]@{
+			InstanceName     = $_.InstanceName
+			ManufacturerName = ($_.ManufacturerName -join ',')
+			UserFriendlyName = ($_.UserFriendlyName -join ',')
+			Active           = $_.Active
+		}
+	} | ConvertTo-Json -Compress`
+
+	output, err := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", psCmd).Output()
+	if err != nil {
+		log.Printf("requête PowerShell échouée (WmiMonitorID): %v", err)
+		return nil
+	}
+
+	var raw []wmiMonitorIDJSON
+	trimmed := strings.TrimSpace(string(output))
+	if trimmed == "" {
+		return nil
+	}
+	if strings.HasPrefix(trimmed, "{") {
+		// Get-CimInstance renvoie un objet seul (pas un tableau JSON) s'il n'y a qu'un écran
+		var single wmiMonitorIDJSON
+		if err := json.Unmarshal(output, &single); err != nil {
+			log.Printf("parsing JSON échoué (WmiMonitorID): %v", err)
+			return nil
+		}
+		raw = []wmiMonitorIDJSON{single}
+	} else if err := json.Unmarshal(output, &raw); err != nil {
+		log.Printf("parsing JSON échoué (WmiMonitorID): %v", err)
+		return nil
+	}
+
 	out := make([]DeviceInfo, 0, len(raw))
 	for _, r := range raw {
-		extra := ""
-		if r.ScreenWidth > 0 && r.ScreenHeight > 0 {
-			extra = formatResolution(r.ScreenWidth, r.ScreenHeight)
+		name := decodeCommaSeparatedCodes(r.UserFriendlyName)
+		manufacturer := decodeCommaSeparatedCodes(r.ManufacturerName)
+
+		status := "inactif"
+		if r.Active {
+			status = "OK"
 		}
-		out = append(out, DeviceInfo{Name: r.Name, Manufacturer: r.MonitorManufacturer, Status: r.Status, Extra: extra})
+
+		if name == "" {
+			name = "Écran (nom indisponible)"
+		}
+
+		out = append(out, DeviceInfo{Name: name, Manufacturer: manufacturer, Status: status})
 	}
 	return out
+}
+
+// decodeCommaSeparatedCodes convertit une liste "72,68,77,73,..." (codes ASCII EDID
+// séparés par des virgules, aplatis côté PowerShell) en la chaîne lisible correspondante,
+// en s'arrêtant au premier zéro de padding.
+func decodeCommaSeparatedCodes(s string) string {
+	if s == "" {
+		return ""
+	}
+	var sb strings.Builder
+	for _, part := range strings.Split(s, ",") {
+		n, err := strconv.Atoi(strings.TrimSpace(part))
+		if err != nil || n == 0 {
+			break
+		}
+		sb.WriteByte(byte(n))
+	}
+	return strings.TrimSpace(sb.String())
 }
 
 func isGenericHIDName(name string) bool {
