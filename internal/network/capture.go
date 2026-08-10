@@ -2,6 +2,7 @@ package network
 
 import (
 	"fmt"
+	"net"
 	"strings"
 	"time"
 
@@ -46,14 +47,91 @@ func ListInterfaceOptions() ([]InterfaceOption, error) {
 	return options, nil
 }
 
+// BuildBPFFilter construit une expression de filtre BPF (appliquée par Npcap au niveau capture,
+// avant que les paquets n'atteignent l'application) à partir d'une liste de protocoles et,
+// optionnellement, d'une adresse IP ou d'une plage CIDR.
+func BuildBPFFilter(protocols []string, ip string) (string, error) {
+	var protoExpr string
+	if len(protocols) > 0 {
+		var clauses []string
+		seen := make(map[string]bool)
+		for _, p := range protocols {
+			p = strings.TrimSpace(p)
+			if p == "" {
+				continue
+			}
+
+			var clause string
+			switch strings.ToUpper(p) {
+			case "TCP":
+				clause = "tcp"
+			case "UDP":
+				clause = "udp"
+			case "ICMP":
+				clause = "(icmp or icmp6)"
+			case "DNS":
+				clause = "udp port 53"
+			case "AUTRE", "OTHER":
+				clause = "(not tcp and not udp and not icmp and not icmp6)"
+			default:
+				return "", fmt.Errorf("protocole de filtre inconnu: %s", p)
+			}
+
+			if !seen[clause] {
+				seen[clause] = true
+				clauses = append(clauses, clause)
+			}
+		}
+		if len(clauses) > 0 {
+			protoExpr = strings.Join(clauses, " or ")
+			if len(clauses) > 1 {
+				protoExpr = "(" + protoExpr + ")"
+			}
+		}
+	}
+
+	var ipExpr string
+	if ip = strings.TrimSpace(ip); ip != "" {
+		if strings.Contains(ip, "/") {
+			if _, _, err := net.ParseCIDR(ip); err != nil {
+				return "", fmt.Errorf("plage IP invalide: %s", ip)
+			}
+			ipExpr = "net " + ip
+		} else {
+			if net.ParseIP(ip) == nil {
+				return "", fmt.Errorf("adresse IP invalide: %s", ip)
+			}
+			ipExpr = "host " + ip
+		}
+	}
+
+	switch {
+	case protoExpr != "" && ipExpr != "":
+		return protoExpr + " and " + ipExpr, nil
+	case protoExpr != "":
+		return protoExpr, nil
+	case ipExpr != "":
+		return ipExpr, nil
+	default:
+		return "", nil
+	}
+}
+
 // CapturePackets ouvre une interface et pousse chaque paquet capturé dans le channel,
-// jusqu'à ce que le channel stop soit fermé.
-func CapturePackets(interfaceName string, packets chan<- PacketInfo, stop <-chan struct{}) error {
+// jusqu'à ce que le channel stop soit fermé. Si filter n'est pas vide, il est appliqué
+// comme filtre BPF au niveau de la capture (voir BuildBPFFilter).
+func CapturePackets(interfaceName, filter string, packets chan<- PacketInfo, stop <-chan struct{}) error {
 	handle, err := pcap.OpenLive(interfaceName, 1600, true, pcap.BlockForever)
 	if err != nil {
 		return fmt.Errorf("impossible d'ouvrir l'interface %s: %w", interfaceName, err)
 	}
 	defer handle.Close()
+
+	if filter != "" {
+		if err := handle.SetBPFFilter(filter); err != nil {
+			return fmt.Errorf("filtre invalide %q: %w", filter, err)
+		}
+	}
 
 	source := gopacket.NewPacketSource(handle, handle.LinkType())
 	packetChan := source.Packets()
@@ -121,7 +199,7 @@ func parsePacket(packet gopacket.Packet) PacketInfo {
 			LookupProcess("udp", info.DstPort),
 		)
 
-	case packet.Layer(layers.LayerTypeICMPv4) != nil:
+	case packet.Layer(layers.LayerTypeICMPv4) != nil, packet.Layer(layers.LayerTypeICMPv6) != nil:
 		info.Protocol = "ICMP"
 	}
 

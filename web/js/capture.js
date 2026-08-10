@@ -20,8 +20,15 @@ function startCapture() {
     document.getElementById('capture-body').innerHTML = '';
 
     const iface = document.getElementById('iface-selector').value;
-    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-    captureSocket = new WebSocket(`${proto}://${location.host}/ws/capture?iface=${encodeURIComponent(iface)}&token=${encodeURIComponent(token)}`);
+    const protocols = Array.from(document.querySelectorAll('.proto-filter:checked')).map(c => c.value);
+    const ipFilter = document.getElementById('capture-ip-filter').value.trim();
+    const wsProto = location.protocol === 'https:' ? 'wss' : 'ws';
+
+    const params = new URLSearchParams({ iface, token });
+    if (protocols.length) params.set('proto', protocols.join(','));
+    if (ipFilter) params.set('ip', ipFilter);
+
+    captureSocket = new WebSocket(`${wsProto}://${location.host}/ws/capture?${params.toString()}`);
 
     captureSocket.onmessage = (event) => {
         const msg = JSON.parse(event.data);
@@ -31,6 +38,11 @@ function startCapture() {
     captureSocket.onopen = () => {
         capturing = true;
         document.getElementById('capture-toggle').textContent = 'arrêter';
+    };
+
+    captureSocket.onerror = () => {
+        document.getElementById('capture-stats').innerHTML =
+            '<div style="color:var(--danger, #d33);">Échec de connexion — vérifie le filtre IP/CIDR saisi.</div>';
     };
 
     captureSocket.onclose = () => {
