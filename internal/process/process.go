@@ -2,11 +2,27 @@ package process
 
 import (
 	"fmt"
+	"path/filepath"
 	"sort"
 	"strings"
 
 	gopsutilprocess "github.com/shirou/gopsutil/v3/process"
 )
+
+// shortProcessName returns a compact process label for the dashboard.
+// Some processes (Chrome, Electron, Node…) rewrite their cmdline so
+// gopsutil's Name() returns the full argument vector; keep only the
+// executable basename of the first token when that happens.
+func shortProcessName(name string) string {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return name
+	}
+	if i := strings.IndexAny(name, " \t"); i >= 0 {
+		name = name[:i]
+	}
+	return filepath.Base(name)
+}
 
 type ProcessInfo struct {
 	PID        int32   `json:"pid"`
@@ -54,7 +70,7 @@ func ListProcesses(nameFilter string) ([]ProcessInfo, error) {
 
 		result = append(result, ProcessInfo{
 			PID:        p.Pid,
-			Name:       name,
+			Name:       shortProcessName(name),
 			CPUPercent: cpuPercent,
 			RAMPercent: ramPercent,
 			Status:     status,
@@ -91,5 +107,5 @@ func GetProcessName(pid int32) string {
 	if err != nil {
 		return "inconnu"
 	}
-	return name
+	return shortProcessName(name)
 }

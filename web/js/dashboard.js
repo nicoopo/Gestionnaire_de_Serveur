@@ -123,7 +123,7 @@ async function loadProcesses(filter = '') {
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${proc.pid}</td>
-            <td>${proc.name}</td>
+            <td class="process-name" title="${proc.name}">${proc.name}</td>
             <td>${proc.cpu_percent.toFixed(1)}%</td>
             <td>${proc.ram_percent.toFixed(1)}%</td>
             <td>${proc.status}</td>

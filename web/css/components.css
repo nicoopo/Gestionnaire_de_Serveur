@@ -140,6 +140,13 @@ td {
     font-family: var(--font-mono);
 }
 
+td.process-name {
+    max-width: 18rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 tbody tr:hover { background: var(--surface-2); }
 
 .status-dot {
