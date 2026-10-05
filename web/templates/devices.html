@@ -1,0 +1,18 @@
+{{define "devices"}}
+<main class="rack-single tab-content" id="tab-devices" style="display:none;">
+    <section class="panel panel-full">
+        <div class="panel-head">
+            <h2>Informations système</h2>
+        </div>
+        <div class="device-grid" id="devices-summary"></div>
+    </section>
+
+    <section class="panel panel-full" style="margin-top:1.2rem;">
+        <div class="panel-head">
+            <h2>Périphériques</h2>
+            <button onclick="loadDevices()">rafraîchir</button>
+        </div>
+        <div class="device-categories" id="devices-categories"></div>
+    </section>
+</main>
+{{end}}

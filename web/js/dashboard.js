@@ -1,0 +1,293 @@
+const maxHistoryPoints = 150;
+let cpuHistory = [];
+let ramHistory = [];
+let diskHistory = [];
+let gpuHistory = [];
+let uploadHistory = [];
+let downloadHistory = [];
+
+function renderSystemInfo(data) {
+    document.getElementById('cpu-value').textContent = `${data.cpu_percent.toFixed(1)}%`;
+    document.getElementById('cpu-bar').innerHTML = segBarHTML(data.cpu_percent);
+
+    document.getElementById('ram-value').textContent = `${data.ram_percent.toFixed(1)}%`;
+    document.getElementById('ram-bar').innerHTML = segBarHTML(data.ram_percent);
+    document.getElementById('ram-sub').textContent = `${(data.ram_used_mb/1024).toFixed(1)} / ${(data.ram_total_mb/1024).toFixed(1)} GB`;
+
+    document.getElementById('uptime-tag').textContent = formatUptime(data.uptime_seconds);
+    document.getElementById('proc-count').textContent = data.process_count;
+    document.getElementById('core-count').textContent = `${data.cpu_core_count} cœurs`;
+
+    const grid = document.getElementById('core-grid');
+    grid.innerHTML = '';
+    data.cpu_per_core.forEach((pct, i) => {
+        const cell = document.createElement('div');
+        cell.className = 'core-cell';
+        cell.title = `${pct.toFixed(0)}%`;
+        cell.innerHTML = `<style>.core-cell:nth-child(${i + 1})::after{height:${Math.max(pct,4)}%;background:${levelColor(pct)};}</style>`;
+        grid.appendChild(cell);
+    });
+
+    const netValueEl = document.getElementById('net-value');
+    if (netValueEl && data.upload_kbs !== undefined) {
+        netValueEl.innerHTML =
+            `<span class="net-arrow-up">↑ ${formatSpeed(data.upload_kbs)}</span> &nbsp; <span class="net-arrow-down">↓ ${formatSpeed(data.download_kbs)}</span>`;
+
+        uploadHistory.push(data.upload_kbs);
+        if (uploadHistory.length > maxHistoryPoints) uploadHistory.shift();
+
+        downloadHistory.push(data.download_kbs);
+        if (downloadHistory.length > maxHistoryPoints) downloadHistory.shift();
+
+        renderNetSparkline();
+    }
+
+    cpuHistory.push(data.cpu_percent);
+    if (cpuHistory.length > maxHistoryPoints) cpuHistory.shift();
+
+    ramHistory.push(data.ram_percent);
+    if (ramHistory.length > maxHistoryPoints) ramHistory.shift();
+
+    diskHistory.push(data.disk_percent);
+    if (diskHistory.length > maxHistoryPoints) diskHistory.shift();
+
+    renderHistoryChart();
+}
+
+async function loadDisks() {
+    const res = await authFetch('/api/disks');
+    const data = await res.json();
+
+    const container = document.getElementById('disks-list');
+    container.innerHTML = '';
+
+    data.forEach(d => {
+        const block = document.createElement('div');
+        block.className = 'meter';
+        block.innerHTML = `
+            <div class="meter-label">
+                <span>${d.mountpoint}</span>
+                <span class="meter-value">${d.percent.toFixed(1)}%</span>
+            </div>
+            <div class="segbar">${segBarHTML(d.percent)}</div>
+            <div class="meter-sub">${d.used_gb} / ${d.total_gb} GB · ${d.fstype}</div>
+        `;
+        container.appendChild(block);
+    });
+}
+
+async function loadGPU() {
+    const res = await authFetch('/api/gpu');
+    const data = await res.json();
+
+    const container = document.getElementById('gpu-block');
+    container.innerHTML = '';
+
+    if (data.length === 0) return;
+
+    data.forEach(gpu => {
+        const memPercent = (gpu.mem_used_mb / gpu.mem_total_mb) * 100;
+
+        const block = document.createElement('div');
+        block.innerHTML = `
+            <div class="meter-sub" style="margin-bottom:0.5rem;">${gpu.name} · ${gpu.temp_c.toFixed(0)}°C</div>
+            <div class="meter">
+                <div class="meter-label"><span>GPU</span><span class="meter-value">${gpu.usage_percent.toFixed(0)}%</span></div>
+                <div class="segbar">${segBarHTML(gpu.usage_percent)}</div>
+            </div>
+            <div class="meter">
+                <div class="meter-label"><span>VRAM</span><span class="meter-value">${memPercent.toFixed(0)}%</span></div>
+                <div class="segbar">${segBarHTML(memPercent)}</div>
+                <div class="meter-sub">${gpu.mem_used_mb} / ${gpu.mem_total_mb} MB</div>
+            </div>
+        `;
+        container.appendChild(block);
+    });
+
+    if (data.length > 0) {
+        gpuHistory.push(data[0].usage_percent);
+        if (gpuHistory.length > maxHistoryPoints) gpuHistory.shift();
+        renderHistoryChart();
+    }
+}
+
+async function loadProcesses(filter = '') {
+    const url = filter ? `/api/processes?name=${encodeURIComponent(filter)}` : '/api/processes';
+    const res = await authFetch(url);
+    const data = await res.json();
+
+    const tbody = document.getElementById('processes-body');
+    tbody.innerHTML = '';
+
+    data.slice(0, 30).forEach(proc => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${proc.pid}</td>
+            <td>${proc.name}</td>
+            <td>${proc.cpu_percent.toFixed(1)}%</td>
+            <td>${proc.ram_percent.toFixed(1)}%</td>
+            <td>${proc.status}</td>
+            <td><button class="danger" onclick="killProcess(${proc.pid})">arrêter</button></td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+async function killProcess(pid) {
+    if (!confirm(`Arrêter le processus ${pid} ?`)) return;
+    const res = await authFetch(`/api/processes/${pid}/kill`, { method: 'POST' });
+    if (res.ok) loadProcesses(document.getElementById('process-filter').value);
+    else alert('Erreur lors de l\'arrêt du processus');
+}
+
+async function loadServices() {
+    const res = await authFetch('/api/services');
+    const data = await res.json();
+    const running = data.filter(s => s.status === 'running');
+
+    document.getElementById('services-count').textContent = `${running.length} en ligne`;
+
+    const tbody = document.getElementById('services-body');
+    tbody.innerHTML = '';
+
+    running.forEach(svc => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td><span class="status-dot running"></span></td>
+            <td>${svc.display_name}</td>
+            <td>${svc.status}</td>
+            <td>
+                <button class="danger" onclick="stopService('${svc.name}')">stop</button>
+                <button onclick="startService('${svc.name}')">start</button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+async function startService(name) {
+    const res = await authFetch(`/api/services/${name}/start`, { method: 'POST' });
+    if (res.ok) loadServices();
+    else alert('Erreur lors du démarrage du service');
+}
+
+async function stopService(name) {
+    if (!confirm(`Arrêter le service ${name} ?`)) return;
+    const res = await authFetch(`/api/services/${name}/stop`, { method: 'POST' });
+    if (res.ok) loadServices();
+    else alert('Erreur lors de l\'arrêt du service');
+}
+
+function connectWS() {
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    const socket = new WebSocket(`${proto}://${location.host}/ws?token=${encodeURIComponent(token)}`);
+
+    socket.onopen = () => {
+        document.getElementById('conn-led').style.background = 'var(--ok)';
+    };
+
+    socket.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+
+        if (msg.type === 'system') {
+            renderSystemInfo(msg.data);
+        } else if (msg.type === 'alerts') {
+            showAlerts(msg.data);
+        }
+    };
+
+    socket.onclose = () => {
+        document.getElementById('conn-led').style.background = 'var(--danger)';
+        setTimeout(connectWS, 2000);
+    };
+
+    socket.onerror = () => socket.close();
+}
+
+function buildLinePath(values, width, height) {
+    if (values.length < 2) return '';
+    const step = width / (maxHistoryPoints - 1);
+    const offset = maxHistoryPoints - values.length;
+    return values.map((v, i) => {
+        const x = (offset + i) * step;
+        const y = height - (v / 100) * height;
+        return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(' ');
+}
+
+function renderHistoryChart() {
+    const width = 600, height = 120;
+    const cpuPath = buildLinePath(cpuHistory, width, height);
+    const ramPath = buildLinePath(ramHistory, width, height);
+    const diskPath = buildLinePath(diskHistory, width, height);
+    const gpuPath = buildLinePath(gpuHistory, width, height);
+
+    const el = document.getElementById('history-chart');
+    if (!el) return;
+
+    el.innerHTML = `
+        <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" style="width:100%;height:120px;">
+            <line x1="0" y1="${height*0.25}" x2="${width}" y2="${height*0.25}" stroke="var(--border)" stroke-width="1"/>
+            <line x1="0" y1="${height*0.5}" x2="${width}" y2="${height*0.5}" stroke="var(--border)" stroke-width="1"/>
+            <line x1="0" y1="${height*0.75}" x2="${width}" y2="${height*0.75}" stroke="var(--border)" stroke-width="1"/>
+            <path d="${diskPath}" fill="none" stroke="#7aa2f7" stroke-width="1.5" opacity="0.8"/>
+            <path d="${gpuPath}" fill="none" stroke="#c678dd" stroke-width="1.5" opacity="0.8"/>
+            <path d="${ramPath}" fill="none" stroke="var(--ok)" stroke-width="2"/>
+            <path d="${cpuPath}" fill="none" stroke="var(--accent)" stroke-width="2"/>
+        </svg>
+    `;
+}
+
+function renderNetSparkline() {
+    const el = document.getElementById('net-sparkline');
+    if (!el) return;
+
+    const width = 280, height = 40;
+    const maxVal = Math.max(...uploadHistory, ...downloadHistory, 1);
+
+    const buildPath = (values) => {
+        if (values.length < 2) return '';
+        const step = width / (maxHistoryPoints - 1);
+        const offset = maxHistoryPoints - values.length;
+        return values.map((v, i) => {
+            const x = (offset + i) * step;
+            const y = height - (v / maxVal) * height;
+            return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
+        }).join(' ');
+    };
+
+    el.innerHTML = `
+        <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" style="width:100%;height:40px;">
+            <path d="${buildPath(downloadHistory)}" fill="none" stroke="var(--ok)" stroke-width="1.5"/>
+            <path d="${buildPath(uploadHistory)}" fill="none" stroke="var(--danger)" stroke-width="1.5"/>
+        </svg>
+    `;
+}
+
+async function loadHistory() {
+    const res = await authFetch('/api/history');
+    const data = await res.json();
+    cpuHistory = data.map(s => s.cpu_percent);
+    ramHistory = data.map(s => s.ram_percent);
+    diskHistory = data.map(s => s.disk_percent);
+    gpuHistory = data.map(s => s.gpu_percent);
+    renderHistoryChart();
+}
+
+function showAlerts(alerts) {
+    const container = document.getElementById('alerts-bar');
+
+    container.innerHTML = alerts.map(a => `
+        <div class="alert alert-${a.level}">
+            <span class="alert-dot"></span>
+            ${a.message}
+        </div>
+    `).join('');
+
+    container.style.display = 'flex';
+
+    clearTimeout(showAlerts._timeout);
+    showAlerts._timeout = setTimeout(() => {
+        container.style.display = 'none';
+    }, 6000);
+}
